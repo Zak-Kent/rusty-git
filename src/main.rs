@@ -1,4 +1,5 @@
-use clap::Parser;
+use std::env;
+use std::process;
 
 // following tutorial here: https://wyag.thb.lt/
 
@@ -17,43 +18,57 @@ enum GitCmd {
     RevParse,
     Rm,
     ShowRef,
-    Tag
+    Tag,
 }
 
-fn arg_to_gitcmd(arg: &str) -> Option<GitCmd> {
-    match arg {
-        "add"         => Some(GitCmd::Add),
-        "cat-file"    => Some(GitCmd::CatFile),
-        "checkout"    => Some(GitCmd::Checkout),
-        "commit"      => Some(GitCmd::Commit),
-        "hash-object" => Some(GitCmd::HashObject),
-        "init"        => Some(GitCmd::Init),
-        "log"         => Some(GitCmd::Log),
-        "ls-tree"     => Some(GitCmd::LsTree),
-        "merge"       => Some(GitCmd::Merge),
-        "rebase"      => Some(GitCmd::Rebase),
-        "rev-parse"   => Some(GitCmd::RevParse),
-        "rm"          => Some(GitCmd::Rm),
-        "show-ref"    => Some(GitCmd::ShowRef),
-        "tag"         => Some(GitCmd::Tag),
-        _             => None
+impl GitCmd {
+    fn new(cmd: &str) -> Result<GitCmd, &'static str> {
+        match cmd {
+            "add" => Ok(GitCmd::Add),
+            "cat-file" => Ok(GitCmd::CatFile),
+            "checkout" => Ok(GitCmd::Checkout),
+            "commit" => Ok(GitCmd::Commit),
+            "hash-object" => Ok(GitCmd::HashObject),
+            "init" => Ok(GitCmd::Init),
+            "log" => Ok(GitCmd::Log),
+            "ls-tree" => Ok(GitCmd::LsTree),
+            "merge" => Ok(GitCmd::Merge),
+            "rebase" => Ok(GitCmd::Rebase),
+            "rev-parse" => Ok(GitCmd::RevParse),
+            "rm" => Ok(GitCmd::Rm),
+            "show-ref" => Ok(GitCmd::ShowRef),
+            "tag" => Ok(GitCmd::Tag),
+            _ => Err("Command isn't supported"),
+        }
     }
 }
 
+#[derive(Debug)]
+struct Config {
+    cmd: GitCmd,
+    args: Vec<String>,
+}
 
-#[derive(Parser, Debug)]
-struct Args {
-    #[clap(value_parser)]
-    cmd: String
+impl Config {
+    fn new(cmdl: Vec<String>) -> Result<Config, &'static str> {
+        if cmdl.len() == 1 {
+            Err("No command entered")
+        } else {
+            let gcmd = GitCmd::new(&cmdl[1])?;
+            Ok(Config {cmd: gcmd, args: cmdl[2..].to_vec()})
+        }
+
+    }
 }
 
 fn main() {
-    let args = Args::parse();
+    let args: Vec<String> = env::args().collect();
     println!("{:?}", args);
 
-    let gcmd = arg_to_gitcmd(&args.cmd);
-    println!("{:?}", gcmd);
-
-    assert!(gcmd.is_some(), "{} is an invalid command!", args.cmd);
+    let cmd_config = Config::new(args).unwrap_or_else(|err: &str| {
+        println!("Error: {}", err);
+        process::exit(1);
+    });
+    println!("{:?}", cmd_config);
 
 }
