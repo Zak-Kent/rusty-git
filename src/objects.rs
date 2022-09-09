@@ -1,11 +1,10 @@
-use std::fs::{self, ReadDir};
-use std::path::PathBuf;
+use std::path::Path;
 
 use crate::config as cfg;
 
-fn does_git_dir_exist(dir: ReadDir) -> bool {
-    dir.into_iter()
-        .any(|f| f.unwrap().path() == PathBuf::from("./.git"))
+fn does_git_dir_exist(path: Box<&Path>) -> bool {
+    let git_dir = format!("{}git", path.display());
+    Path::new(&git_dir).exists()
 }
 
 pub struct Repo {
@@ -16,15 +15,11 @@ pub struct Repo {
 
 impl Repo {
     pub fn new(cmd: cfg::Config) {
-        // TODO: need to pass in the path as part of the config
-        println!("file path we're searching on: {:?}", *cmd.path);
-
-        let dir_contents = fs::read_dir(*cmd.path);
-
-        if does_git_dir_exist(dir_contents.unwrap()) {
+        if  does_git_dir_exist(cmd.path) {
             println!(".git dir exists");
         } else {
             println!("need to create .git dir");
         }
+
     }
 }
