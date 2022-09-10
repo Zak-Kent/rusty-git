@@ -17,6 +17,9 @@ fn main() {
     });
     println!("Config struct: {:?}", cmd_config);
 
-    obj::Repo::new(cmd_config);
-
+    let repo = obj::Repo::new(cmd_config).unwrap_or_else(|err: String| {
+        println!("Error creating git repo: {}", err);
+        process::exit(1);
+    });
+    println!("{:?}", repo);
 }
