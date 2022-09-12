@@ -3,6 +3,7 @@ use std::process;
 
 mod config;
 mod objects;
+mod testutils;
 
 use crate::config as cfg;
 use crate::objects as obj;

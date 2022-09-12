@@ -30,3 +30,19 @@ impl Repo {
         })
     }
 }
+
+#[cfg(test)]
+mod object_tests {
+    use crate::testutils as utils;
+
+    #[test]
+    fn git_repo_setup_test() {
+        // unwrap will panic here if dir setup fails
+        let worktree = utils::test_git_dir().unwrap();
+        let gitdir = worktree.path().join(".git");
+        let gitconf = worktree.path().join(".git/config");
+
+        assert!(gitdir.exists());
+        assert!(gitconf.exists());
+    }
+}
