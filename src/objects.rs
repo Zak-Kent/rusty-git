@@ -33,6 +33,7 @@ impl Repo {
 
 #[cfg(test)]
 mod object_tests {
+    use super::*;
     use crate::testutils as utils;
 
     #[test]
@@ -45,4 +46,14 @@ mod object_tests {
         assert!(gitdir.exists());
         assert!(gitconf.exists());
     }
+
+    #[test]
+    fn repo_struct_creation_succeeds_when_in_git_repo() -> Result<(), String> {
+        let worktree = utils::test_git_dir().unwrap();
+        let cmd = Vec::from(["rusty-git".to_string(), "init".to_string()]);
+        let config = cfg::Config::new(cmd, worktree.path().to_path_buf())?;
+        let _repo = Repo::new(config)?;
+        Ok(())
+    }
+
 }
