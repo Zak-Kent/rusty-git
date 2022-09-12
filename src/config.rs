@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::PathBuf;
 
 #[derive(Debug)]
 pub enum GitCmd {
@@ -41,22 +41,22 @@ impl GitCmd {
 }
 
 #[derive(Debug)]
-pub struct Config<'a> {
+pub struct Config {
     pub cmd: GitCmd,
-    pub path: Box<&'a Path>,
+    pub path: PathBuf,
     pub args: Vec<String>,
 }
 
-impl Config<'_> {
-    pub fn new(cmdl: Vec<String>) -> Result<Config<'static>, &'static str> {
-        if cmdl.len() == 1 {
+impl Config {
+    pub fn new(cmds: Vec<String>, repo_path: PathBuf) -> Result<Config, &'static str> {
+        if cmds.len() == 1 {
             Err("No command entered")
         } else {
-            let gcmd = GitCmd::new(&cmdl[1])?;
+            let gcmd = GitCmd::new(&cmds[1])?;
             Ok(Config {
                 cmd: gcmd,
-                path: Box::new(Path::new(".")),
-                args: cmdl[2..].to_vec(),
+                path: repo_path,
+                args: cmds[2..].to_vec(),
             })
         }
     }
