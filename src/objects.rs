@@ -34,7 +34,7 @@ impl Repo {
 #[cfg(test)]
 mod object_tests {
     use super::*;
-    use crate::testutils as utils;
+    use crate::utils as utils;
 
     #[test]
     fn git_repo_setup_test() {

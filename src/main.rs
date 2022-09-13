@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 mod config;
 mod objects;
-mod testutils;
+mod utils;
 
 use crate::config as cfg;
 use crate::objects as obj;
