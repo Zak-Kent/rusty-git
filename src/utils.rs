@@ -1,6 +1,6 @@
 use std::fs::{create_dir, File};
 use std::io::Error;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use tempfile::{tempdir, TempDir};
 
 pub fn test_tempdir() -> Result<TempDir, Error> {
@@ -16,11 +16,19 @@ pub fn test_gitdir() -> Result<TempDir, Error> {
     return Ok(dir);
 }
 
-#[allow(dead_code)]
 pub fn is_git_repo(path: &Path) -> bool {
     let gitdir = path.join(".git");
     let conf = path.join(".git/config");
     gitdir.exists() && conf.exists()
+}
+
+pub fn git_repo_or_err(path: &Path) -> Result<PathBuf, &'static str> {
+    let gitrepo = is_git_repo(path);
+    if gitrepo {
+        return Ok(path.to_owned())
+    } else {
+        Err("Not a git repository!")
+    }
 }
 
 #[cfg(test)]

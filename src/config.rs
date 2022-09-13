@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use crate::utils;
 
 #[derive(Debug)]
 pub enum GitCmd {
@@ -48,16 +49,40 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(cmds: Vec<String>, repo_path: PathBuf) -> Result<Config, &'static str> {
+    pub fn new(cmds: Vec<String>, repo_path: Option<PathBuf>) -> Result<Config, &'static str> {
         if cmds.len() == 1 {
             Err("No command entered")
         } else {
             let gcmd = GitCmd::new(&cmds[1])?;
+            let repo_path = repo_path.unwrap_or(PathBuf::from("."));
+
             Ok(Config {
                 cmd: gcmd,
-                path: repo_path,
+                path: utils::git_repo_or_err(repo_path.as_path())?,
                 args: cmds[2..].to_vec(),
             })
         }
+    }
+}
+
+#[cfg(test)]
+mod config_tests {
+    use super::*;
+    use crate::utils;
+
+    #[test]
+    fn config_struct_creation_fails_when_not_in_git_repo() -> Result<(), String> {
+        let tmpdir = utils::test_tempdir().unwrap();
+        let cmd = Vec::from(["rusty-git".to_string(), "add".to_string()]);
+        let config = Config::new(cmd, Some(tmpdir.path().to_path_buf()));
+        assert!(config.is_err());
+        match config {
+            Err(e) => assert!(
+                e.contains("Not a git repository!"),
+                "missing expected git repo error"
+            ),
+            _ => panic!("Config creation should error!"),
+        };
+        Ok(())
     }
 }

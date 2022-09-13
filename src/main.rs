@@ -1,6 +1,5 @@
 use std::env;
 use std::process;
-use std::path::PathBuf;
 
 mod config;
 mod objects;
@@ -13,7 +12,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     println!("passed in args: {:?}", args);
 
-    let cmd_config = cfg::Config::new(args, PathBuf::from(".")).unwrap_or_else(|err: &str| {
+    let cmd_config = cfg::Config::new(args, None).unwrap_or_else(|err: &str| {
         println!("Error: {}", err);
         process::exit(1);
     });
