@@ -56,4 +56,21 @@ mod object_tests {
         Ok(())
     }
 
+    #[test]
+    fn repo_struct_creation_fails_when_not_in_git_repo() -> Result<(), String> {
+        let tmpdir = utils::test_tempdir().unwrap();
+        let cmd = Vec::from(["rusty-git".to_string(), "add".to_string()]);
+        let config = cfg::Config::new(cmd, tmpdir.path().to_path_buf());
+        assert!(config.is_ok());
+
+        let repo = Repo::new(config.unwrap());
+        assert!(repo.is_err());
+
+        match repo {
+            Err(e) => assert!(e.contains(".git doesn't exist"),
+                              "missing expected git dir error"),
+            _ => panic!("Repo creation should error!"),
+        };
+        Ok(())
+    }
 }
