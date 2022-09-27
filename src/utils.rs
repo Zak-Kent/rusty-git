@@ -3,6 +3,8 @@ use std::io::Error;
 use std::path::{Path, PathBuf};
 use tempfile::{tempdir, TempDir};
 
+use crate::error as err;
+
 pub fn test_tempdir() -> Result<TempDir, Error> {
     let tmp_dir = tempdir()?;
     Ok(tmp_dir)
@@ -22,12 +24,12 @@ pub fn is_git_repo(path: &Path) -> bool {
     gitdir.exists() && conf.exists()
 }
 
-pub fn git_repo_or_err(path: &Path) -> Result<PathBuf, &'static str> {
+pub fn git_repo_or_err(path: &Path) -> Result<PathBuf, err::Error> {
     let gitrepo = is_git_repo(path);
     if gitrepo {
         return Ok(path.to_owned())
     } else {
-        Err("Not a git repository!")
+        Err(err::Error::NotAGitRepo)
     }
 }
 

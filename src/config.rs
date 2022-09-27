@@ -1,4 +1,6 @@
 use std::path::PathBuf;
+
+use crate::error as err;
 use crate::utils;
 
 #[derive(Debug)]
@@ -20,7 +22,7 @@ pub enum GitCmd {
 }
 
 impl GitCmd {
-    fn new(cmd: &str) -> Result<GitCmd, &'static str> {
+    fn new(cmd: &str) -> Result<GitCmd, err::Error> {
         match cmd {
             "add" => Ok(GitCmd::Add),
             "cat-file" => Ok(GitCmd::CatFile),
@@ -36,7 +38,7 @@ impl GitCmd {
             "rm" => Ok(GitCmd::Rm),
             "show-ref" => Ok(GitCmd::ShowRef),
             "tag" => Ok(GitCmd::Tag),
-            _ => Err("Command isn't supported"),
+            _ => Err(err::Error::UnsupportedCommand),
         }
     }
 }
@@ -49,9 +51,9 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(cmds: Vec<String>, repo_path: Option<PathBuf>) -> Result<Config, &'static str> {
+    pub fn new(cmds: Vec<String>, repo_path: Option<PathBuf>) -> Result<Config, err::Error> {
         if cmds.len() == 1 {
-            Err("No command entered")
+            Err(err::Error::MissingCommand)
         } else {
             let gcmd = GitCmd::new(&cmds[1])?;
             let repo_path = repo_path.unwrap_or(PathBuf::from("."));
@@ -71,16 +73,13 @@ mod config_tests {
     use crate::utils;
 
     #[test]
-    fn config_struct_creation_fails_when_not_in_git_repo() -> Result<(), String> {
+    fn config_struct_creation_fails_when_not_in_git_repo() -> Result<(), err::Error> {
         let tmpdir = utils::test_tempdir().unwrap();
-        let cmd = Vec::from(["rusty-git".to_string(), "add".to_string()]);
+        let cmd = Vec::from(["rusty-git".to_owned(), "add".to_owned()]);
         let config = Config::new(cmd, Some(tmpdir.path().to_path_buf()));
         assert!(config.is_err());
         match config {
-            Err(e) => assert!(
-                e.contains("Not a git repository!"),
-                "missing expected git repo error"
-            ),
+            Err(err::Error::NotAGitRepo) => assert!(true),
             _ => panic!("Config creation should error!"),
         };
         Ok(())

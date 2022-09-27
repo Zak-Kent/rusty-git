@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::config as cfg;
+use crate::error as err;
 
 #[derive(Debug)]
 pub struct Repo {
@@ -9,25 +10,26 @@ pub struct Repo {
     pub gitconf: PathBuf,
 }
 
-fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, String> {
+fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     path.push(ext);
     if path.exists() {
         return Ok(path);
     } else {
-        Err(format!("{} doesn't exist", path.display()))
+        Err(err::Error::PathDoesntExist(path.display().to_string()))
     }
 }
 
 impl Repo {
     // new expects an existing git repo
-    pub fn new(conf: cfg::Config) -> Result<Repo, String> {
+    pub fn new(conf: cfg::Config) -> Result<Repo, err::Error> {
         let base_path = conf.path.to_path_buf();
         let gitdir = build_path(base_path.clone(), ".git")?;
-        let git_conf = build_path(gitdir.clone(), "config")?;
+        let gitconf = build_path(gitdir.clone(), "config")?;
+
         Ok(Repo {
             worktree: base_path,
-            gitdir: gitdir,
-            gitconf: git_conf,
+            gitdir,
+            gitconf,
         })
     }
 }
@@ -49,7 +51,7 @@ mod object_tests {
     }
 
     #[test]
-    fn repo_struct_creation_succeeds_when_in_git_repo() -> Result<(), String> {
+    fn repo_struct_creation_succeeds_when_in_git_repo() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
         let cmd = Vec::from(["rusty-git".to_string(), "init".to_string()]);
         let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
