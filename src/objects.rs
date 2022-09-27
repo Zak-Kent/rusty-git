@@ -1,4 +1,5 @@
 use std::path::PathBuf;
+use std::fs;
 
 use crate::config as cfg;
 use crate::error as err;
@@ -7,7 +8,7 @@ use crate::error as err;
 pub struct Repo {
     pub worktree: PathBuf,
     pub gitdir: PathBuf,
-    pub gitconf: PathBuf,
+    pub gitconf: String,
 }
 
 fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
@@ -24,7 +25,8 @@ impl Repo {
     pub fn new(conf: cfg::Config) -> Result<Repo, err::Error> {
         let base_path = conf.path.to_path_buf();
         let gitdir = build_path(base_path.clone(), ".git")?;
-        let gitconf = build_path(gitdir.clone(), "config")?;
+        let gitconf_path = build_path(gitdir.clone(), "config")?;
+        let gitconf = fs::read_to_string(gitconf_path)?;
 
         Ok(Repo {
             worktree: base_path,
