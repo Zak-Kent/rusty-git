@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use crate::error as err;
-use crate::utils;
 
 #[derive(Debug)]
 pub enum GitCmd {
@@ -60,7 +59,7 @@ impl Config {
 
             Ok(Config {
                 cmd: gcmd,
-                path: utils::git_repo_or_err(repo_path.as_path())?,
+                path: repo_path,
                 args: cmds[2..].to_vec(),
             })
         }
@@ -73,15 +72,23 @@ mod config_tests {
     use crate::utils;
 
     #[test]
-    fn config_struct_creation_fails_when_not_in_git_repo() -> Result<(), err::Error> {
-        let tmpdir = utils::test_tempdir().unwrap();
-        let cmd = Vec::from(["rusty-git".to_owned(), "add".to_owned()]);
-        let config = Config::new(cmd, Some(tmpdir.path().to_path_buf()));
+    fn config_creation_fails_on_unsupported_command() -> Result<(), err::Error> {
+        let worktree = utils::test_gitdir().unwrap();
+        let cmd = Vec::from(["rusty-git".to_owned(), "foo".to_owned()]);
+        let config = Config::new(cmd, Some(worktree.path().to_path_buf()));
         assert!(config.is_err());
         match config {
-            Err(err::Error::NotAGitRepo) => assert!(true),
-            _ => panic!("Config creation should error!"),
+            Err(err::Error::UnsupportedCommand) => assert!(true),
+            _ => panic!("Config creation should error on unsupported foo command!"),
         };
+        Ok(())
+    }
+
+    #[test]
+    fn config_creation_succeeds_on_supported_command() -> Result<(), err::Error> {
+        let worktree = utils::test_gitdir().unwrap();
+        let cmd = Vec::from(["rusty-git".to_owned(), "add".to_owned()]);
+        let _config = Config::new(cmd, Some(worktree.path().to_path_buf()))?;
         Ok(())
     }
 }

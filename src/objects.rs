@@ -3,6 +3,7 @@ use std::fs;
 
 use crate::config as cfg;
 use crate::error as err;
+use crate::utils;
 
 #[derive(Debug)]
 pub struct Repo {
@@ -23,7 +24,7 @@ fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
 impl Repo {
     // new expects an existing git repo
     pub fn new(conf: cfg::Config) -> Result<Repo, err::Error> {
-        let base_path = conf.path.to_path_buf();
+        let base_path = utils::git_repo_or_err(&conf.path)?;
         let gitdir = build_path(base_path.clone(), ".git")?;
         let gitconf_path = build_path(gitdir.clone(), "config")?;
         let gitconf = fs::read_to_string(gitconf_path)?;
@@ -58,6 +59,20 @@ mod object_tests {
         let cmd = Vec::from(["rusty-git".to_string(), "init".to_string()]);
         let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
         let _repo = Repo::new(config)?;
+        Ok(())
+    }
+
+    #[test]
+    fn repo_struct_creation_fails_when_not_in_git_repo() -> Result<(), err::Error> {
+        let tmpdir = utils::test_tempdir().unwrap();
+        let cmd = Vec::from(["rusty-git".to_owned(), "add".to_owned()]);
+        let config = cfg::Config::new(cmd, Some(tmpdir.path().to_path_buf()))?;
+        let repo = Repo::new(config);
+        assert!(repo.is_err());
+        match repo {
+            Err(err::Error::NotAGitRepo) => assert!(true),
+            _ => panic!("Repo creation should error!"),
+        };
         Ok(())
     }
 }
