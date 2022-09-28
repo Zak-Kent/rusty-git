@@ -18,6 +18,11 @@ pub fn test_gitdir() -> Result<TempDir, Error> {
     return Ok(dir);
 }
 
+#[allow(dead_code)]
+pub fn test_cmd(cmd: &str) -> Vec<String>{
+    return Vec::from(["rusty-git".to_owned(), cmd.to_owned()]);
+}
+
 pub fn is_git_repo(path: &Path) -> bool {
     let gitdir = path.join(".git");
     let conf = path.join(".git/config");

@@ -74,7 +74,7 @@ mod config_tests {
     #[test]
     fn config_creation_fails_on_unsupported_command() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
-        let cmd = Vec::from(["rusty-git".to_owned(), "foo".to_owned()]);
+        let cmd = utils::test_cmd("foo");
         let config = Config::new(cmd, Some(worktree.path().to_path_buf()));
         assert!(config.is_err());
         match config {
@@ -87,7 +87,7 @@ mod config_tests {
     #[test]
     fn config_creation_succeeds_on_supported_command() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
-        let cmd = Vec::from(["rusty-git".to_owned(), "add".to_owned()]);
+        let cmd = utils::test_cmd("add");
         let _config = Config::new(cmd, Some(worktree.path().to_path_buf()))?;
         Ok(())
     }

@@ -56,7 +56,7 @@ mod object_tests {
     #[test]
     fn repo_struct_creation_succeeds_when_in_git_repo() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
-        let cmd = Vec::from(["rusty-git".to_string(), "init".to_string()]);
+        let cmd = utils::test_cmd("init");
         let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
         let _repo = Repo::new(config)?;
         Ok(())
@@ -65,7 +65,7 @@ mod object_tests {
     #[test]
     fn repo_struct_creation_fails_when_not_in_git_repo() -> Result<(), err::Error> {
         let tmpdir = utils::test_tempdir().unwrap();
-        let cmd = Vec::from(["rusty-git".to_owned(), "add".to_owned()]);
+        let cmd = utils::test_cmd("add");
         let config = cfg::Config::new(cmd, Some(tmpdir.path().to_path_buf()))?;
         let repo = Repo::new(config);
         assert!(repo.is_err());
