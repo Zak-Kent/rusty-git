@@ -1,4 +1,4 @@
-use std::fs::{create_dir, File};
+use std::fs::{File, create_dir_all};
 use std::io::Error;
 use std::path::{Path, PathBuf};
 use tempfile::{tempdir, TempDir};
@@ -11,10 +11,9 @@ pub fn test_tempdir() -> Result<TempDir, Error> {
 }
 
 #[allow(dead_code)]
-pub fn test_gitdir() -> Result<TempDir, Error> {
+pub fn test_gitdir() -> Result<TempDir, err::Error> {
     let dir = test_tempdir()?;
-    create_dir(dir.path().join(".git"))?;
-    File::create(dir.path().join(".git/config"))?;
+    create_git_repo(dir.path())?;
     return Ok(dir);
 }
 
@@ -38,6 +37,19 @@ pub fn git_repo_or_err(path: &Path) -> Result<PathBuf, err::Error> {
     }
 }
 
+pub fn create_git_repo(path: &Path) -> Result<(), err::Error> {
+    if is_git_repo(path) {
+        return Err(err::Error::GitRepoAlreadyExists)
+    }
+    create_dir_all(path.join(".git/objects"))?;
+    create_dir_all(path.join(".git/refs/heads"))?;
+    create_dir_all(path.join(".git/refs/tags"))?;
+    File::create(path.join(".git/HEAD"))?;
+    File::create(path.join(".git/config"))?;
+    File::create(path.join(".git/description"))?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod utils_tests {
     use super::*;
@@ -57,5 +69,43 @@ mod utils_tests {
         let tempdir = test_tempdir().unwrap();
         let tempdir_path = tempdir.path();
         assert!(!is_git_repo(tempdir_path))
+    }
+
+    #[test]
+    fn create_gitdir_succeeds_in_empty_dir() {
+        let tempdir = test_tempdir().unwrap();
+        let tempdir_path = tempdir.path();
+
+        let create_git_repo_result = create_git_repo(&tempdir_path);
+        if create_git_repo_result.is_err() {
+            panic!("repo setup failed in test!")
+        }
+
+        let gitdir_path = tempdir_path.join(".git");
+        assert!(gitdir_path.try_exists().expect(".git dir should exist"));
+
+        let assert_path = |ext: &str| {
+            assert!(gitdir_path
+                    .join(ext)
+                    .try_exists()
+                    .unwrap_or_else(|err|
+                                    panic!(".git/{} should exist. Error: {}", ext, err)))
+        };
+        assert_path("objects");
+        assert_path("refs/tags");
+        assert_path("refs/heads");
+        assert_path("HEAD");
+        assert_path("config");
+        assert_path("description");
+    }
+
+    #[test]
+    fn create_gitdir_errors_in_an_existing_git_dir() {
+        let gitdir = test_gitdir().unwrap();
+        let gitdir_path = gitdir.path();
+        assert!(is_git_repo(gitdir_path));
+
+        let create_git_repo_result = create_git_repo(gitdir_path);
+        assert!(Err(err::Error::GitRepoAlreadyExists) == create_git_repo_result);
     }
 }

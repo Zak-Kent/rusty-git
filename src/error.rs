@@ -1,7 +1,9 @@
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
     #[error("Not a Git repo")]
     NotAGitRepo,
+    #[error("Git repo already exists at the given path")]
+    GitRepoAlreadyExists,
     #[error("Missing a command argument")]
     MissingCommand,
     #[error("Unsupported command")]
