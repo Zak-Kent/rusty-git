@@ -1,5 +1,5 @@
-use std::fs::{File, create_dir_all};
-use std::io::Error;
+use std::fs::{create_dir_all, File};
+use std::io::{Error, Write};
 use std::path::{Path, PathBuf};
 use tempfile::{tempdir, TempDir};
 
@@ -18,7 +18,7 @@ pub fn test_gitdir() -> Result<TempDir, err::Error> {
 }
 
 #[allow(dead_code)]
-pub fn test_cmd(cmd: &str) -> Vec<String>{
+pub fn test_cmd(cmd: &str) -> Vec<String> {
     return Vec::from(["rusty-git".to_owned(), cmd.to_owned()]);
 }
 
@@ -31,27 +31,46 @@ pub fn is_git_repo(path: &Path) -> bool {
 pub fn git_repo_or_err(path: &Path) -> Result<PathBuf, err::Error> {
     let gitrepo = is_git_repo(path);
     if gitrepo {
-        return Ok(path.to_owned())
+        return Ok(path.to_owned());
     } else {
         Err(err::Error::NotAGitRepo)
     }
 }
 
+pub fn default_repo_config() -> &'static str {
+    "[core]
+       bare = false
+       filemode = false
+       repositoryformatversion = 0"
+}
+
 pub fn create_git_repo(path: &Path) -> Result<(), err::Error> {
     if is_git_repo(path) {
-        return Err(err::Error::GitRepoAlreadyExists)
+        return Err(err::Error::GitRepoAlreadyExists);
     }
     create_dir_all(path.join(".git/objects"))?;
     create_dir_all(path.join(".git/refs/heads"))?;
     create_dir_all(path.join(".git/refs/tags"))?;
-    File::create(path.join(".git/HEAD"))?;
-    File::create(path.join(".git/config"))?;
-    File::create(path.join(".git/description"))?;
+
+    let mut head = File::create(path.join(".git/HEAD"))?;
+    writeln!(head, "ref: refs/heads/master")?;
+
+    let mut description = File::create(path.join(".git/description"))?;
+    writeln!(
+        description,
+        "Unnamed repository; edit this file 'description' to name the repository."
+    )?;
+
+    let mut config = File::create(path.join(".git/config"))?;
+    writeln!(config, "{}", default_repo_config())?;
     Ok(())
 }
 
 #[cfg(test)]
 mod utils_tests {
+    use ini;
+    use std::collections::HashMap;
+
     use super::*;
 
     #[test]
@@ -86,10 +105,9 @@ mod utils_tests {
 
         let assert_path = |ext: &str| {
             assert!(gitdir_path
-                    .join(ext)
-                    .try_exists()
-                    .unwrap_or_else(|err|
-                                    panic!(".git/{} should exist. Error: {}", ext, err)))
+                .join(ext)
+                .try_exists()
+                .unwrap_or_else(|err| panic!(".git/{} should exist. Error: {}", ext, err)))
         };
         assert_path("objects");
         assert_path("refs/tags");
@@ -97,6 +115,17 @@ mod utils_tests {
         assert_path("HEAD");
         assert_path("config");
         assert_path("description");
+
+        let mut core: HashMap<String, Option<String>> = HashMap::new();
+        core.insert("filemode".to_owned(), Some("false".to_owned()));
+        core.insert("repositoryformatversion".to_owned(), Some("0".to_owned()));
+        core.insert("bare".to_owned(), Some("false".to_owned()));
+
+        let mut expected_config: HashMap<String, HashMap<String, Option<String>>> = HashMap::new();
+        expected_config.insert("core".to_owned(), core);
+
+        let config = ini::ini!(gitdir_path.join("config").to_str().unwrap());
+        assert_eq!(expected_config, config);
     }
 
     #[test]
