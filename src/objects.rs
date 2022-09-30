@@ -1,5 +1,5 @@
-use std::path::PathBuf;
 use std::fs;
+use std::path::PathBuf;
 
 use crate::config as cfg;
 use crate::error as err;
@@ -37,8 +37,25 @@ impl Repo {
     }
 }
 
+pub fn find_gitdir_and_create_repo(conf: cfg::Config) -> Result<Repo, err::Error> {
+    let mut path = conf.path;
+    while !utils::is_git_repo(&path) {
+        if let Some(p) = path.parent() {
+            println!("inside the loop");
+            path = p.to_path_buf();
+        } else {
+            return Err(err::Error::NotAGitRepo);
+        }
+    }
+
+    let updated_conf = cfg::Config { path, ..conf };
+    return Ok(Repo::new(updated_conf)?);
+}
+
 #[cfg(test)]
 mod object_tests {
+    use std::fs::create_dir_all;
+
     use super::*;
     use crate::utils;
 
@@ -69,6 +86,37 @@ mod object_tests {
         let config = cfg::Config::new(cmd, Some(tmpdir.path().to_path_buf()))?;
         let repo = Repo::new(config);
         assert!(repo.is_err());
+        match repo {
+            Err(err::Error::NotAGitRepo) => assert!(true),
+            _ => panic!("Repo creation should error!"),
+        };
+        Ok(())
+    }
+
+    #[test]
+    fn find_gitdir_and_create_repo_finds_parent_gitdir() -> Result<(), err::Error> {
+        let worktree = utils::test_gitdir().unwrap();
+
+        // create a nested path with .git living a few levels above
+        let nested_path = worktree.path().join("foo/bar/baz");
+        create_dir_all(&nested_path)?;
+
+        let cmd = utils::test_cmd("add");
+        let config = cfg::Config::new(cmd, Some(nested_path))?;
+        let repo = find_gitdir_and_create_repo(config)?;
+
+        // check nested path was discarded when creating Repo.worktree
+        assert_eq!(worktree.path(), repo.worktree);
+        Ok(())
+    }
+
+    #[test]
+    fn find_gitdir_and_create_repo_errors_when_no_gitdir_in_path() -> Result<(), err::Error> {
+        let tmpdir = utils::test_tempdir().unwrap();
+        let cmd = utils::test_cmd("add");
+        let config = cfg::Config::new(cmd, Some(tmpdir.path().to_path_buf()))?;
+
+        let repo = find_gitdir_and_create_repo(config);
         match repo {
             Err(err::Error::NotAGitRepo) => assert!(true),
             _ => panic!("Repo creation should error!"),
