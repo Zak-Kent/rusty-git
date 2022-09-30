@@ -8,6 +8,8 @@ pub enum Error {
     MissingCommand,
     #[error("Unsupported command")]
     UnsupportedCommand,
+    #[error("Unimplemented command")]
+    UnimplementedCommand,
     #[error("Path doesn't exist: {0}")]
     PathDoesntExist(String),
     #[error("IO error: {0}")]

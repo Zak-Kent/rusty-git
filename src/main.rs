@@ -5,10 +5,11 @@ mod config;
 mod objects;
 mod utils;
 mod error;
+mod commands;
 
 use crate::config as cfg;
-use crate::objects as obj;
 use crate::error as err;
+use crate::commands as cmd;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -20,9 +21,8 @@ fn main() {
     });
     println!("Config struct: {:?}", cmd_config);
 
-    let repo = obj::Repo::new(cmd_config).unwrap_or_else(|err: err::Error| {
-        println!("Error creating git repo: {}", err);
+    cmd::run_cmd(&cmd_config).unwrap_or_else(|err: err::Error| {
+        println!("Error: {}", err);
         process::exit(1);
     });
-    println!("{:?}", repo);
 }
