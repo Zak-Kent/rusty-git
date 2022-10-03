@@ -1,5 +1,6 @@
 use std::fs;
-use std::path::PathBuf;
+use std::path::{PathBuf, Path};
+use sha256;
 
 use crate::config as cfg;
 use crate::error as err;
@@ -41,7 +42,6 @@ pub fn find_gitdir_and_create_repo(conf: cfg::Config) -> Result<Repo, err::Error
     let mut path = conf.path;
     while !utils::is_git_repo(&path) {
         if let Some(p) = path.parent() {
-            println!("inside the loop");
             path = p.to_path_buf();
         } else {
             return Err(err::Error::NotAGitRepo);
@@ -52,9 +52,15 @@ pub fn find_gitdir_and_create_repo(conf: cfg::Config) -> Result<Repo, err::Error
     return Ok(Repo::new(updated_conf)?);
 }
 
+pub fn hash_object(path: &Path) -> Result<String, err::Error> {
+    let hash = sha256::digest_file(path)?;
+    return Ok(hash.to_owned());
+}
+
 #[cfg(test)]
 mod object_tests {
-    use std::fs::create_dir_all;
+    use std::fs::{create_dir_all, File};
+    use std::io::Write;
 
     use super::*;
     use crate::utils;
@@ -121,6 +127,19 @@ mod object_tests {
             Err(err::Error::NotAGitRepo) => assert!(true),
             _ => panic!("Repo creation should error!"),
         };
+        Ok(())
+    }
+
+    #[test]
+    fn generate_hash_for_file() -> Result<(), err::Error> {
+        let tmpdir = utils::test_tempdir().unwrap();
+        let fp = tmpdir.path().join("tempfoo");
+        let mut tmpfile = File::create(&fp)?;
+        writeln!(tmpfile, "foobar")?;
+        let hash = hash_object(&fp)?;
+
+        assert_eq!(hash,
+                   "aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f".to_owned());
         Ok(())
     }
 }
