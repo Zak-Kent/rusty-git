@@ -1,10 +1,20 @@
-use std::fs;
-use std::path::{PathBuf, Path};
+use deflate::write::ZlibEncoder;
+use deflate::Compression;
 use sha256;
+use std::fs::{self, create_dir, metadata, File};
+use std::io::Write;
+use std::path::{Path, PathBuf};
 
 use crate::config as cfg;
 use crate::error as err;
 use crate::utils;
+
+#[derive(Debug)]
+pub enum GitObject {
+    Commit,
+    Tree,
+    Blob(PathBuf),
+}
 
 #[derive(Debug)]
 pub struct Repo {
@@ -52,8 +62,52 @@ pub fn find_gitdir_and_create_repo(conf: cfg::Config) -> Result<Repo, err::Error
     return Ok(Repo::new(updated_conf)?);
 }
 
-pub fn hash_object(path: &Path) -> Result<String, err::Error> {
-    let hash = sha256::digest_file(path)?;
+pub fn content_length(path: &Path) -> Result<u64, err::Error> {
+    Ok(metadata(path)?.len())
+}
+
+pub fn path_exists(path: &Path) -> bool {
+    metadata(path).is_ok()
+}
+
+pub fn write_object(obj: GitObject, repo: Option<Repo>) -> Result<String, err::Error> {
+    let path = match obj {
+        GitObject::Blob(path) => path,
+        _ => panic!("only implemented for Blobs!"),
+    };
+
+    let length = content_length(&path)?.to_string();
+    let contents = fs::read(&path)?;
+    let contents_with_header = [
+        "blob".as_bytes(),
+        " ".as_bytes(),
+        length.as_bytes(),
+        "\x00".as_bytes(),
+        contents.as_slice(),
+    ]
+    .concat();
+
+    let hash = sha256::digest_bytes(&contents_with_header);
+
+    // The existance of a repo indicates that the contents of the obj should be
+    // compressed and written to the appropriate dir/file in .git/objects
+    if let Some(repo) = repo {
+        let git_obj_dir = repo.worktree.join(format!(".git/objects/{}", &hash[..2]));
+        let git_obj_path = git_obj_dir.join(format!("{}", &hash[2..]));
+
+        if !path_exists(&git_obj_dir) {
+            create_dir(&git_obj_dir)?;
+        }
+
+        if !path_exists(&git_obj_path) {
+            let obj_file = File::create(&git_obj_path)?;
+            let mut encoder = ZlibEncoder::new(obj_file, Compression::Default);
+            encoder.write_all(&contents_with_header)?;
+            encoder.finish()?;
+        } else {
+            println!("file with compressed contents already exists at that hash");
+        }
+    }
     return Ok(hash.to_owned());
 }
 
@@ -131,15 +185,31 @@ mod object_tests {
     }
 
     #[test]
-    fn generate_hash_for_file() -> Result<(), err::Error> {
-        let tmpdir = utils::test_tempdir().unwrap();
-        let fp = tmpdir.path().join("tempfoo");
+    fn generate_hash_and_write_compressed_file() -> Result<(), err::Error> {
+        let worktree = utils::test_gitdir().unwrap();
+        let cmd = utils::test_cmd("hash-object");
+        let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
+        let repo = Repo::new(config)?;
+
+        let fp = worktree.path().join("tempfoo");
         let mut tmpfile = File::create(&fp)?;
         writeln!(tmpfile, "foobar")?;
-        let hash = hash_object(&fp)?;
 
-        assert_eq!(hash,
-                   "aec070645fe53ee3b3763059376134f058cc337247c978add178b6ccdfb0019f".to_owned());
+        let blob = GitObject::Blob(fp.to_owned());
+        let hash = write_object(blob, Some(repo))?;
+
+        assert_eq!(
+            hash,
+            "aa161e140ba95d5f611da742cedbdc98d11128a40d89a3c45b3a74f50f970897".to_owned()
+        );
+
+        let git_obj_path =
+            worktree
+                .path()
+                .join(format!(".git/objects/{}/{}", &hash[..2], &hash[2..]));
+
+        assert_eq!(22, content_length(&git_obj_path)?);
+
         Ok(())
     }
 }
