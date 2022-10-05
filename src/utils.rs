@@ -18,8 +18,14 @@ pub fn test_gitdir() -> Result<TempDir, err::Error> {
 }
 
 #[allow(dead_code)]
-pub fn test_cmd(cmd: &str) -> Vec<String> {
-    return Vec::from(["rusty-git".to_owned(), cmd.to_owned()]);
+pub fn test_cmd(cmd: &str, arg: Option<&str>) -> Vec<String> {
+    let mut cmd_result = Vec::from(["rusty-git".to_owned(), cmd.to_owned()]);
+
+    if let Some(arg) = arg {
+        cmd_result.push(arg.to_owned());
+    }
+
+    return cmd_result
 }
 
 pub fn is_git_repo(path: &Path) -> bool {

@@ -74,7 +74,7 @@ mod config_tests {
     #[test]
     fn config_creation_fails_on_unsupported_command() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
-        let cmd = utils::test_cmd("foo");
+        let cmd = utils::test_cmd("foo", None);
         let config = Config::new(cmd, Some(worktree.path().to_path_buf()));
         assert!(config.is_err());
         match config {
@@ -87,7 +87,7 @@ mod config_tests {
     #[test]
     fn config_creation_succeeds_on_supported_command() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
-        let cmd = utils::test_cmd("add");
+        let cmd = utils::test_cmd("add", None);
         let _config = Config::new(cmd, Some(worktree.path().to_path_buf()))?;
         Ok(())
     }

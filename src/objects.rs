@@ -133,7 +133,7 @@ mod object_tests {
     #[test]
     fn repo_struct_creation_succeeds_when_in_git_repo() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
-        let cmd = utils::test_cmd("init");
+        let cmd = utils::test_cmd("init", None);
         let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
         let _repo = Repo::new(config)?;
         Ok(())
@@ -142,7 +142,7 @@ mod object_tests {
     #[test]
     fn repo_struct_creation_fails_when_not_in_git_repo() -> Result<(), err::Error> {
         let tmpdir = utils::test_tempdir().unwrap();
-        let cmd = utils::test_cmd("add");
+        let cmd = utils::test_cmd("add", None);
         let config = cfg::Config::new(cmd, Some(tmpdir.path().to_path_buf()))?;
         let repo = Repo::new(config);
         assert!(repo.is_err());
@@ -161,7 +161,7 @@ mod object_tests {
         let nested_path = worktree.path().join("foo/bar/baz");
         create_dir_all(&nested_path)?;
 
-        let cmd = utils::test_cmd("add");
+        let cmd = utils::test_cmd("add", None);
         let config = cfg::Config::new(cmd, Some(nested_path))?;
         let repo = find_gitdir_and_create_repo(config)?;
 
@@ -173,7 +173,7 @@ mod object_tests {
     #[test]
     fn find_gitdir_and_create_repo_errors_when_no_gitdir_in_path() -> Result<(), err::Error> {
         let tmpdir = utils::test_tempdir().unwrap();
-        let cmd = utils::test_cmd("add");
+        let cmd = utils::test_cmd("add", None);
         let config = cfg::Config::new(cmd, Some(tmpdir.path().to_path_buf()))?;
 
         let repo = find_gitdir_and_create_repo(config);
@@ -187,7 +187,8 @@ mod object_tests {
     #[test]
     fn generate_hash_and_write_compressed_file() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
-        let cmd = utils::test_cmd("hash-object");
+        // TODO might want to reconsider the threading of args here wrt hash-object
+        let cmd = utils::test_cmd("hash-object", None);
         let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
         let repo = Repo::new(config)?;
 
