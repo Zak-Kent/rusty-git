@@ -14,6 +14,10 @@ pub enum Error {
     PathDoesntExist(String),
     #[error("IO error: {0}")]
     IOError(String),
+    #[error("Unrecognized arguments passed in with command: {0:?}")]
+    UnrecognizedArguments(Vec<String>),
+    #[error("Command expects a path as an argument")]
+    MissingPathArgument,
 }
 
 impl std::convert::From<std::io::Error> for Error {

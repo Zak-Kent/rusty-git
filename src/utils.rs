@@ -50,7 +50,7 @@ pub fn default_repo_config() -> &'static str {
        repositoryformatversion = 0"
 }
 
-pub fn create_git_repo(path: &Path) -> Result<(), err::Error> {
+pub fn create_git_repo(path: &Path) -> Result<Option<String>, err::Error> {
     if is_git_repo(path) {
         return Err(err::Error::GitRepoAlreadyExists);
     }
@@ -69,7 +69,7 @@ pub fn create_git_repo(path: &Path) -> Result<(), err::Error> {
 
     let mut config = File::create(path.join(".git/config"))?;
     writeln!(config, "{}", default_repo_config())?;
-    Ok(())
+    Ok(None)
 }
 
 #[cfg(test)]
