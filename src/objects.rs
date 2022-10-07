@@ -1,9 +1,11 @@
 use deflate::write::ZlibEncoder;
 use deflate::Compression;
+use inflate::inflate_bytes_zlib;
 use sha256;
-use std::fs::{self, create_dir, metadata, File};
+use std::fs::{self, create_dir, metadata, read, File};
 use std::io::Write;
 use std::path::{Path, PathBuf};
+use std::str::from_utf8;
 
 use crate::config as cfg;
 use crate::error as err;
@@ -16,7 +18,7 @@ pub enum GitObject {
     Blob(PathBuf),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Repo {
     pub worktree: PathBuf,
     pub gitdir: PathBuf,
@@ -68,6 +70,62 @@ pub fn content_length(path: &Path) -> Result<u64, err::Error> {
 
 pub fn path_exists(path: &Path) -> bool {
     metadata(path).is_ok()
+}
+
+fn git_obj_path_from_sha(sha: &str, repo: Repo) -> Result<PathBuf, err::Error> {
+    let obj_path = repo
+        .worktree
+        .join(format!(".git/objects/{}/{}", &sha[..2], &sha[2..]));
+
+    if path_exists(&obj_path) {
+        return Ok(obj_path.to_path_buf());
+    } else {
+        return Err(err::Error::GitObjPathDoesntExist(
+            obj_path.display().to_string(),
+        ));
+    }
+}
+
+pub fn read_object(sha: &str, repo: Repo) -> Result<String, err::Error> {
+    let obj_path = git_obj_path_from_sha(sha, repo)?;
+    let contents = read(&obj_path)?;
+
+    let decoded = match inflate_bytes_zlib(&contents) {
+        Ok(res) => res,
+        Err(e) => return Err(err::Error::InflatingGitObj(e)),
+    };
+
+    // there's likely a better way to slice up the inflated Vec
+    // avoiding the extra allocations for each part of the orig Vec
+    let obj_type_b: Vec<u8> = decoded
+        .iter()
+        .take_while(|elm| **elm != b' ')
+        .map(|b| *b)
+        .collect();
+    let obj_type = from_utf8(&obj_type_b)?;
+
+    let obj_len_b: Vec<u8> = decoded
+        .iter()
+        .skip_while(|elm| **elm != b' ')
+        .skip(1) // skip the space after obj type
+        .take_while(|elm| **elm != b'\x00')
+        .map(|b| *b)
+        .collect();
+    let obj_len = from_utf8(&obj_len_b)?.parse::<usize>()?;
+
+    let obj_content_b: Vec<u8> = decoded
+        .iter()
+        .skip_while(|elm| **elm != b'\x00')
+        .skip(1) // skip the null byte
+        .map(|b| *b)
+        .collect();
+    let obj_content = from_utf8(&obj_content_b)?;
+
+    if obj_len != obj_content.len() {
+        return Err(err::Error::GitMalformedObject)
+    }
+
+    return Ok(obj_content.to_owned())
 }
 
 pub fn write_object(obj: GitObject, repo: Option<Repo>) -> Result<String, err::Error> {
@@ -191,6 +249,7 @@ mod object_tests {
         let cmd = utils::test_cmd("hash-object", None);
         let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
         let repo = Repo::new(config)?;
+        let repo_clone = repo.clone();
 
         let fp = worktree.path().join("tempfoo");
         let mut tmpfile = File::create(&fp)?;
@@ -208,8 +267,10 @@ mod object_tests {
             worktree
                 .path()
                 .join(format!(".git/objects/{}/{}", &hash[..2], &hash[2..]));
-
         assert_eq!(22, content_length(&git_obj_path)?);
+
+        let obj_contents = read_object(&hash, repo_clone)?;
+        assert_eq!("foobar\n", obj_contents);
 
         Ok(())
     }
