@@ -39,7 +39,7 @@ pub fn git_repo_or_err(path: &Path) -> Result<PathBuf, err::Error> {
     if gitrepo {
         return Ok(path.to_owned());
     } else {
-        Err(err::Error::NotAGitRepo)
+        Err(err::Error::GitNotARepo)
     }
 }
 

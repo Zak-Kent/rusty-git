@@ -56,7 +56,7 @@ pub fn find_gitdir_and_create_repo(conf: cfg::Config) -> Result<Repo, err::Error
         if let Some(p) = path.parent() {
             path = p.to_path_buf();
         } else {
-            return Err(err::Error::NotAGitRepo);
+            return Err(err::Error::GitNotARepo);
         }
     }
 
@@ -205,7 +205,7 @@ mod object_tests {
         let repo = Repo::new(config);
         assert!(repo.is_err());
         match repo {
-            Err(err::Error::NotAGitRepo) => assert!(true),
+            Err(err::Error::GitNotARepo) => assert!(true),
             _ => panic!("Repo creation should error!"),
         };
         Ok(())
@@ -236,7 +236,7 @@ mod object_tests {
 
         let repo = find_gitdir_and_create_repo(config);
         match repo {
-            Err(err::Error::NotAGitRepo) => assert!(true),
+            Err(err::Error::GitNotARepo) => assert!(true),
             _ => panic!("Repo creation should error!"),
         };
         Ok(())
