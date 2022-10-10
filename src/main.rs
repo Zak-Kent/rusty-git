@@ -6,6 +6,7 @@ mod config;
 mod error;
 mod objects;
 mod utils;
+mod object_parsers;
 
 use crate::commands as cmd;
 use crate::config as cfg;

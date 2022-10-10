@@ -11,11 +11,18 @@ use crate::config as cfg;
 use crate::error as err;
 use crate::utils;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum GitObject {
     Commit,
     Tree,
     Blob(PathBuf),
+}
+
+#[derive(Debug)]
+pub struct GitObjInfo<'a> {
+    pub obj: GitObject,
+    pub len: usize,
+    pub contents: &'a [u8],
 }
 
 #[derive(Debug, Clone)]
