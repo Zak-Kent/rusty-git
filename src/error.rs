@@ -35,6 +35,8 @@ pub enum Error {
     Utf8Conversion(#[from] std::str::Utf8Error),
     #[error("Error attempting to parse int: {0}")]
     ParseIntError(#[from] ParseIntError),
+    #[error("Nom error: {0}")]
+    NomError(String),
 }
 
 // the thiserror lib automatically does similar error
@@ -42,5 +44,11 @@ pub enum Error {
 impl std::convert::From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         Error::IOError(err.to_string())
+    }
+}
+
+impl std::convert::From<nom::Err<nom::error::Error<&[u8]>>> for Error {
+    fn from(err: nom::Err<nom::error::Error<&[u8]>>) -> Self {
+        Error::NomError(err.to_string())
     }
 }

@@ -9,6 +9,7 @@ use nom::{
 use std::path::PathBuf;
 use std::str::from_utf8;
 
+use crate::error as err;
 use crate::objects as obj;
 
 // TODO: figure out a way to make nom errors more specific
@@ -49,17 +50,14 @@ fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
     return Ok((input, output));
 }
 
-fn parse_git_obj(input: &[u8]) -> IResult<&[u8], obj::GitObjInfo> {
+fn parse_git_obj(input: &[u8]) -> Result<obj::GitObjInfo, err::Error> {
     let (input, obj) = parse_obj_type(input)?;
     let (input, len) = parse_obj_len(input)?;
-    return Ok((
-        input,
-        obj::GitObjInfo {
-            obj,
-            len,
-            contents: input,
-        },
-    ));
+    return Ok(obj::GitObjInfo {
+        obj,
+        len,
+        contents: input,
+    });
 }
 
 #[cfg(test)]
@@ -77,7 +75,7 @@ mod object_parsing_tests {
         ]
         .concat();
 
-        let (_, gitobjinfo) = parse_git_obj(&test_inflated_git_objt).unwrap();
+        let gitobjinfo = parse_git_obj(&test_inflated_git_objt).unwrap();
 
         assert_eq!("git file contents", from_utf8(gitobjinfo.contents).unwrap());
         assert_eq!(12, gitobjinfo.len);
