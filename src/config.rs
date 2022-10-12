@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use crate::error as err;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GitCmd {
     Add,
     CatFile,
@@ -42,7 +42,7 @@ impl GitCmd {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Config {
     pub cmd: GitCmd,
     pub path: PathBuf,
