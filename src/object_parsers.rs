@@ -50,7 +50,7 @@ fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
     return Ok((input, output));
 }
 
-fn parse_git_obj(input: &[u8]) -> Result<obj::GitObjInfo, err::Error> {
+pub fn parse_git_obj(input: &[u8]) -> Result<obj::GitObjInfo, err::Error> {
     let (input, obj) = parse_obj_type(input)?;
     let (input, len) = parse_obj_len(input)?;
     return Ok(obj::GitObjInfo {

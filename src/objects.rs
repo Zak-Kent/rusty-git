@@ -9,6 +9,7 @@ use std::str::from_utf8;
 
 use crate::config as cfg;
 use crate::error as err;
+use crate::object_parsers as objp;
 use crate::utils;
 
 #[derive(Debug, PartialEq)]
@@ -102,37 +103,15 @@ pub fn read_object(sha: &str, repo: Repo) -> Result<String, err::Error> {
         Err(e) => return Err(err::Error::InflatingGitObj(e)),
     };
 
-    // there's likely a better way to slice up the inflated Vec
-    // avoiding the extra allocations for each part of the orig Vec
-    let obj_type_b: Vec<u8> = decoded
-        .iter()
-        .take_while(|elm| **elm != b' ')
-        .map(|b| *b)
-        .collect();
-    let obj_type = from_utf8(&obj_type_b)?;
+    let gitobjinfo = objp::parse_git_obj(&decoded)?;
 
-    let obj_len_b: Vec<u8> = decoded
-        .iter()
-        .skip_while(|elm| **elm != b' ')
-        .skip(1) // skip the space after obj type
-        .take_while(|elm| **elm != b'\x00')
-        .map(|b| *b)
-        .collect();
-    let obj_len = from_utf8(&obj_len_b)?.parse::<usize>()?;
-
-    let obj_content_b: Vec<u8> = decoded
-        .iter()
-        .skip_while(|elm| **elm != b'\x00')
-        .skip(1) // skip the null byte
-        .map(|b| *b)
-        .collect();
-    let obj_content = from_utf8(&obj_content_b)?;
-
-    if obj_len != obj_content.len() {
+    if gitobjinfo.len != gitobjinfo.contents.len() {
         return Err(err::Error::GitMalformedObject)
     }
 
-    return Ok(obj_content.to_owned())
+    let file_content = from_utf8(gitobjinfo.contents)?;
+
+    return Ok(file_content.to_owned())
 }
 
 pub fn write_object(obj: GitObject, repo: Option<Repo>) -> Result<String, err::Error> {
