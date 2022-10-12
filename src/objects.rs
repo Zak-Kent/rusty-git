@@ -103,7 +103,7 @@ pub fn read_object(sha: &str, repo: Repo) -> Result<String, err::Error> {
         Err(e) => return Err(err::Error::InflatingGitObj(e)),
     };
 
-    let gitobjinfo = objp::parse_git_obj(&decoded)?;
+    let gitobjinfo = objp::parse_git_obj(&decoded, &obj_path)?;
 
     if gitobjinfo.len != gitobjinfo.contents.len() {
         return Err(err::Error::GitMalformedObject)
