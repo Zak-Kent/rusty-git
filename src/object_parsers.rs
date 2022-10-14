@@ -1,11 +1,12 @@
-use nom::branch::alt;
-use nom::bytes::complete::take_while;
-use nom::character::is_newline;
-use nom::multi::many1;
 use nom::{
-    bytes::complete::{tag, take_till1},
-    character::complete::space1,
+    branch::alt,
+    bytes::complete::{tag, take_till1, take_while, take_while1},
+    character::{
+        complete::{space0, space1},
+        is_newline,
+    },
     error::{Error, ErrorKind},
+    multi::many1,
     Err, IResult,
 };
 
@@ -69,7 +70,7 @@ fn parse_kv_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
     let (input, _) = space1(input)?;
     let (input, val) = take_till1(|c| c == b'\n')(input)?;
     let (input, _) = take_while(is_newline)(input)?;
-    return Ok((input, (key, val)))
+    return Ok((input, (key, val)));
 }
 
 fn parse_kv_pairs(input: &[u8]) -> IResult<&[u8], HashMap<&[u8], &[u8]>> {
@@ -78,7 +79,26 @@ fn parse_kv_pairs(input: &[u8]) -> IResult<&[u8], HashMap<&[u8], &[u8]>> {
     for (k, v) in pairs {
         kvs.insert(k, v);
     }
-    return Ok((input, kvs))
+    return Ok((input, kvs));
+}
+
+fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    let (input, _) = space0(input)?;
+    let (input, nl) = take_while1(is_newline)(input)?;
+    return Ok((input, nl));
+}
+
+// list of key value pairs with msg
+// this format is used for commits and tags
+struct KvsMsg<'a> {
+    kvs: HashMap<&'a [u8], &'a [u8]>,
+    msg: &'a [u8],
+}
+
+fn parse_kv_list_msg(input: &[u8]) -> Result<KvsMsg, err::Error> {
+    let (input, kvs) = parse_kv_pairs(input)?;
+    let (input, _) = parse_seperator_line(input)?;
+    return Ok(KvsMsg { kvs, msg: input });
 }
 
 #[cfg(test)]
@@ -129,12 +149,10 @@ mod object_parsing_tests {
             " ".as_bytes(),
             "tree-val".as_bytes(),
             "\n".as_bytes(),
-
             "parent".as_bytes(),
             " ".as_bytes(),
             "parent-val".as_bytes(),
             "\n".as_bytes(),
-
             "author".as_bytes(),
             " ".as_bytes(),
             "author val".as_bytes(),
@@ -143,9 +161,45 @@ mod object_parsing_tests {
         .concat();
 
         let (input, pairs) = parse_kv_pairs(&kv_pairs).unwrap();
-        assert_eq!(&"tree-val".as_bytes(), pairs.get("tree".as_bytes()).unwrap());
-        assert_eq!(&"parent-val".as_bytes(), pairs.get("parent".as_bytes()).unwrap());
-        assert_eq!(&"author val".as_bytes(), pairs.get("author".as_bytes()).unwrap());
+        assert_eq!(
+            &"tree-val".as_bytes(),
+            pairs.get("tree".as_bytes()).unwrap()
+        );
+        assert_eq!(
+            &"parent-val".as_bytes(),
+            pairs.get("parent".as_bytes()).unwrap()
+        );
+        assert_eq!(
+            &"author val".as_bytes(),
+            pairs.get("author".as_bytes()).unwrap()
+        );
         assert!(input.is_empty());
+    }
+
+    #[test]
+    fn can_parse_commit_msg() {
+        let commit_msg = [
+            "tree".as_bytes(),
+            " ".as_bytes(),
+            "tree-val".as_bytes(),
+            "\n".as_bytes(),
+            "parent".as_bytes(),
+            " ".as_bytes(),
+            "parent-val".as_bytes(),
+            "\n".as_bytes(),
+            "             \n".as_bytes(),
+            "this is a test commit\n".as_bytes(),
+            "message".as_bytes(),
+        ]
+        .concat();
+
+        let KvsMsg { kvs, msg } = parse_kv_list_msg(&commit_msg).unwrap();
+        assert_eq!(&"tree-val".as_bytes(), kvs.get("tree".as_bytes()).unwrap());
+        assert_eq!(
+            &"parent-val".as_bytes(),
+            kvs.get("parent".as_bytes()).unwrap()
+        );
+        assert_eq!(2, kvs.keys().count());
+        assert_eq!("this is a test commit\nmessage".as_bytes(), msg);
     }
 }
