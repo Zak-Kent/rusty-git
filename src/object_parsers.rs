@@ -73,13 +73,15 @@ fn parse_kv_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
     return Ok((input, (key, val)));
 }
 
-fn parse_kv_pairs(input: &[u8]) -> IResult<&[u8], HashMap<&[u8], &[u8]>> {
+fn parse_kv_pairs(input: &[u8]) -> IResult<&[u8], (Vec<&[u8]>, HashMap<&[u8], &[u8]>)> {
     let (input, pairs) = many1(parse_kv_pair)(input)?;
     let mut kvs = HashMap::new();
+    let mut insert_order = Vec::new();
     for (k, v) in pairs {
+        insert_order.push(k);
         kvs.insert(k, v);
     }
-    return Ok((input, kvs));
+    return Ok((input, (insert_order.to_owned(), kvs)));
 }
 
 fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
@@ -92,13 +94,18 @@ fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
 // this format is used for commits and tags
 struct KvsMsg<'a> {
     kvs: HashMap<&'a [u8], &'a [u8]>,
+    kvs_order: Vec<&'a [u8]>,
     msg: &'a [u8],
 }
 
 fn parse_kv_list_msg(input: &[u8]) -> Result<KvsMsg, err::Error> {
-    let (input, kvs) = parse_kv_pairs(input)?;
+    let (input, (kvs_order, kvs)) = parse_kv_pairs(input)?;
     let (input, _) = parse_seperator_line(input)?;
-    return Ok(KvsMsg { kvs, msg: input });
+    return Ok(KvsMsg {
+        kvs,
+        kvs_order,
+        msg: input,
+    });
 }
 
 #[cfg(test)]
@@ -160,7 +167,7 @@ mod object_parsing_tests {
         ]
         .concat();
 
-        let (input, pairs) = parse_kv_pairs(&kv_pairs).unwrap();
+        let (input, (pair_order, pairs)) = parse_kv_pairs(&kv_pairs).unwrap();
         assert_eq!(
             &"tree-val".as_bytes(),
             pairs.get("tree".as_bytes()).unwrap()
@@ -174,6 +181,10 @@ mod object_parsing_tests {
             pairs.get("author".as_bytes()).unwrap()
         );
         assert!(input.is_empty());
+        assert_eq!(
+            Vec::from(["tree".as_bytes(), "parent".as_bytes(), "author".as_bytes()]),
+            pair_order
+        );
     }
 
     #[test]
@@ -193,7 +204,11 @@ mod object_parsing_tests {
         ]
         .concat();
 
-        let KvsMsg { kvs, msg } = parse_kv_list_msg(&commit_msg).unwrap();
+        let KvsMsg {
+            kvs,
+            kvs_order,
+            msg,
+        } = parse_kv_list_msg(&commit_msg).unwrap();
         assert_eq!(&"tree-val".as_bytes(), kvs.get("tree".as_bytes()).unwrap());
         assert_eq!(
             &"parent-val".as_bytes(),
@@ -201,5 +216,6 @@ mod object_parsing_tests {
         );
         assert_eq!(2, kvs.keys().count());
         assert_eq!("this is a test commit\nmessage".as_bytes(), msg);
+        assert_eq!("tree".as_bytes(), kvs_order[0]);
     }
 }
