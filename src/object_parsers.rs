@@ -114,18 +114,11 @@ mod object_parsing_tests {
 
     #[test]
     fn can_parse_git_object() {
-        let test_inflated_git_objt = [
-            "blob".as_bytes(),
-            " ".as_bytes(),
-            "12".as_bytes(),
-            "\x00".as_bytes(),
-            "git file contents".as_bytes(),
-        ]
-        .concat();
+        let test_inflated_git_obj = ["blob 12", "\x00", "git file contents"]
+            .map(|s| s.as_bytes())
+            .concat();
         let path = PathBuf::from("foo/path");
-
-        let gitobjinfo = parse_git_obj(&test_inflated_git_objt, &path).unwrap();
-
+        let gitobjinfo = parse_git_obj(&test_inflated_git_obj, &path).unwrap();
         assert_eq!("git file contents", from_utf8(gitobjinfo.contents).unwrap());
         assert_eq!(12, gitobjinfo.len);
         assert_eq!(
@@ -136,13 +129,7 @@ mod object_parsing_tests {
 
     #[test]
     fn can_parse_kv_pair() {
-        let kv_pair = [
-            "tree".as_bytes(),
-            " ".as_bytes(),
-            "foobar".as_bytes(),
-            "\n".as_bytes(),
-        ]
-        .concat();
+        let kv_pair = "tree foobar\n".as_bytes();
         let (input, (k, v)) = parse_kv_pair(&kv_pair).unwrap();
         assert_eq!(k, "tree".as_bytes());
         assert_eq!(v, "foobar".as_bytes());
@@ -152,19 +139,11 @@ mod object_parsing_tests {
     #[test]
     fn can_parse_kv_pairs() {
         let kv_pairs = [
-            "tree".as_bytes(),
-            " ".as_bytes(),
-            "tree-val".as_bytes(),
-            "\n".as_bytes(),
-            "parent".as_bytes(),
-            " ".as_bytes(),
-            "parent-val".as_bytes(),
-            "\n".as_bytes(),
-            "author".as_bytes(),
-            " ".as_bytes(),
-            "author val".as_bytes(),
-            "\n".as_bytes(),
+            "tree tree-val\n",
+            "parent parent-val\n",
+            "author author val\n",
         ]
+        .map(|s| s.as_bytes())
         .concat();
 
         let (input, (pair_order, pairs)) = parse_kv_pairs(&kv_pairs).unwrap();
@@ -190,18 +169,13 @@ mod object_parsing_tests {
     #[test]
     fn can_parse_commit_msg() {
         let commit_msg = [
-            "tree".as_bytes(),
-            " ".as_bytes(),
-            "tree-val".as_bytes(),
-            "\n".as_bytes(),
-            "parent".as_bytes(),
-            " ".as_bytes(),
-            "parent-val".as_bytes(),
-            "\n".as_bytes(),
-            "             \n".as_bytes(),
-            "this is a test commit\n".as_bytes(),
-            "message".as_bytes(),
+            "tree tree-val\n",
+            "parent parent-val\n",
+            "             \n",
+            "this is a test commit\n",
+            "message",
         ]
+        .map(|s| s.as_bytes())
         .concat();
 
         let KvsMsg {
@@ -209,6 +183,7 @@ mod object_parsing_tests {
             kvs_order,
             msg,
         } = parse_kv_list_msg(&commit_msg).unwrap();
+
         assert_eq!(&"tree-val".as_bytes(), kvs.get("tree".as_bytes()).unwrap());
         assert_eq!(
             &"parent-val".as_bytes(),
