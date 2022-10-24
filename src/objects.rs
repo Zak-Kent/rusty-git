@@ -13,17 +13,26 @@ use crate::object_parsers as objp;
 use crate::utils;
 
 #[derive(Debug, PartialEq)]
-pub enum GitObject {
+pub enum GitObjTyp {
     Commit,
     Tree,
-    Blob(PathBuf),
+    Blob,
 }
 
+// a file in the .git/objects dir
 #[derive(Debug)]
-pub struct GitObjInfo<'a> {
-    pub obj: GitObject,
+pub struct GitObject<'a> {
+    pub obj: GitObjTyp,
     pub len: usize,
     pub contents: &'a [u8],
+    pub source: PathBuf,
+}
+
+// a file that is being fed into git
+#[derive(Debug)]
+pub struct SourceFile {
+    pub typ: GitObjTyp,
+    pub source: PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -103,25 +112,26 @@ pub fn read_object(sha: &str, repo: Repo) -> Result<String, err::Error> {
         Err(e) => return Err(err::Error::InflatingGitObj(e)),
     };
 
-    let gitobjinfo = objp::parse_git_obj(&decoded, &obj_path)?;
-
-    if gitobjinfo.len != gitobjinfo.contents.len() {
+    let gitobject = objp::parse_git_obj(&decoded, &obj_path)?;
+    if gitobject.len != gitobject.contents.len() {
         return Err(err::Error::GitMalformedObject)
     }
 
-    let file_content = from_utf8(gitobjinfo.contents)?;
-
-    return Ok(file_content.to_owned())
+    return Ok(from_utf8(gitobject.contents)?.to_owned());
 }
 
-pub fn write_object(obj: GitObject, repo: Option<Repo>) -> Result<String, err::Error> {
-    let path = match obj {
-        GitObject::Blob(path) => path,
+pub fn write_object(src: SourceFile, repo: Option<Repo>) -> Result<String, err::Error> {
+    let path = match src {
+        SourceFile {
+            typ: GitObjTyp::Blob,
+            source,
+            ..
+        } => source,
         _ => panic!("only implemented for Blobs!"),
     };
 
     let length = content_length(&path)?.to_string();
-    let contents = fs::read(&path)?;
+    let contents = read(&path)?;
     let contents_with_header = [
         "blob".as_bytes(),
         " ".as_bytes(),
@@ -133,7 +143,7 @@ pub fn write_object(obj: GitObject, repo: Option<Repo>) -> Result<String, err::E
 
     let hash = sha256::digest_bytes(&contents_with_header);
 
-    // The existance of a repo indicates that the contents of the obj should be
+    // The existance of a repo indicates that the contents of the file should be
     // compressed and written to the appropriate dir/file in .git/objects
     if let Some(repo) = repo {
         let git_obj_dir = repo.worktree.join(format!(".git/objects/{}", &hash[..2]));
@@ -241,8 +251,11 @@ mod object_tests {
         let mut tmpfile = File::create(&fp)?;
         writeln!(tmpfile, "foobar")?;
 
-        let blob = GitObject::Blob(fp.to_owned());
-        let hash = write_object(blob, Some(repo))?;
+        let src = SourceFile {
+            typ: GitObjTyp::Blob,
+            source: fp.to_owned(),
+        };
+        let hash = write_object(src, Some(repo))?;
 
         assert_eq!(
             hash,

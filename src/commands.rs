@@ -9,17 +9,23 @@ fn run_init(config: &cfg::Config) -> Result<Option<String>, err::Error> {
     return Ok(utils::create_git_repo(&config.path)?);
 }
 
-fn hash_object(config: &cfg::Config, repo: Option<obj::Repo>) -> Result<Option<String>, err::Error> {
+fn hash_object(
+    config: &cfg::Config,
+    repo: Option<obj::Repo>,
+) -> Result<Option<String>, err::Error> {
     match config.args.len() {
         0 => return Err(err::Error::MissingPathArgument),
         1 => (), // expects 1 path arg so do nothing
         _ => return Err(err::Error::UnrecognizedArguments(config.args.clone())),
     };
     let path: PathBuf = PathBuf::from(&config.args[0]);
-    let blob = obj::GitObject::Blob(path);
+    let src = obj::SourceFile {
+        typ: obj::GitObjTyp::Blob,
+        source: path,
+    };
 
     // by passing None to write_object it will only return the hash, no write
-    return Ok(Some(obj::write_object(blob, repo)?));
+    return Ok(Some(obj::write_object(src, repo)?));
 }
 
 // This version of cat-file differs from git's due to the fact git expects
@@ -35,7 +41,7 @@ fn cat_file(config: &cfg::Config) -> Result<Option<String>, err::Error> {
     let sha = config.args[0].clone();
     let repo = obj::Repo::new(config.clone())?;
     let file_contents = obj::read_object(&sha, repo)?;
-    return Ok(Some(file_contents))
+    return Ok(Some(file_contents));
 }
 
 pub fn run_cmd(config: &cfg::Config, add_repo: bool) -> Result<Option<String>, err::Error> {

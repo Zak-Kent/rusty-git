@@ -25,12 +25,12 @@ fn generic_nom_err(input: &[u8]) -> Err<Error<&[u8]>> {
     })
 }
 
-fn parse_obj_type<'a>(input: &'a [u8], path: &'a PathBuf) -> IResult<&'a [u8], obj::GitObject> {
+fn parse_obj_type<'a>(input: &'a [u8], path: &'a PathBuf) -> IResult<&'a [u8], obj::GitObjTyp> {
     let (input, obj) = alt((tag("blob"), tag("commit"), tag("tree")))(input)?;
     return match obj {
-        b"blob" => Ok((input, obj::GitObject::Blob(path.to_path_buf()))),
-        b"commit" => Ok((input, obj::GitObject::Commit)),
-        b"tree" => Ok((input, obj::GitObject::Tree)),
+        b"blob" => Ok((input, obj::GitObjTyp::Blob)),
+        b"commit" => Ok((input, obj::GitObjTyp::Commit)),
+        b"tree" => Ok((input, obj::GitObjTyp::Tree)),
         _ => Err(generic_nom_err(input)),
     };
 }
@@ -55,13 +55,14 @@ fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
 pub fn parse_git_obj<'a>(
     input: &'a [u8],
     path: &'a PathBuf,
-) -> Result<obj::GitObjInfo<'a>, err::Error> {
+) -> Result<obj::GitObject<'a>, err::Error> {
     let (input, obj) = parse_obj_type(input, path)?;
-    let (input, len) = parse_obj_len(input)?;
-    return Ok(obj::GitObjInfo {
+    let (contents, len) = parse_obj_len(input)?;
+    return Ok(obj::GitObject {
         obj,
         len,
-        contents: input,
+        contents,
+        source: path.to_path_buf(),
     });
 }
 
@@ -118,12 +119,12 @@ mod object_parsing_tests {
             .map(|s| s.as_bytes())
             .concat();
         let path = PathBuf::from("foo/path");
-        let gitobjinfo = parse_git_obj(&test_inflated_git_obj, &path).unwrap();
-        assert_eq!("git file contents", from_utf8(gitobjinfo.contents).unwrap());
-        assert_eq!(12, gitobjinfo.len);
+        let gitobject = parse_git_obj(&test_inflated_git_obj, &path).unwrap();
+        assert_eq!("git file contents", from_utf8(gitobject.contents).unwrap());
+        assert_eq!(12, gitobject.len);
         assert_eq!(
-            obj::GitObject::Blob(PathBuf::from("foo/path")),
-            gitobjinfo.obj
+            obj::GitObjTyp::Blob,
+            gitobject.obj
         );
     }
 
