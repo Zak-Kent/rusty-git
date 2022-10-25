@@ -2,9 +2,9 @@ use deflate::write::ZlibEncoder;
 use deflate::Compression;
 use inflate::inflate_bytes_zlib;
 use sha256;
-use std::fs::{self, create_dir, metadata, read, File};
+use std::fs::{self, create_dir, read, File};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::str::from_utf8;
 
 use crate::config as cfg;
@@ -42,21 +42,12 @@ pub struct Repo {
     pub gitconf: String,
 }
 
-fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
-    path.push(ext);
-    if path.exists() {
-        return Ok(path);
-    } else {
-        Err(err::Error::PathDoesntExist(path.display().to_string()))
-    }
-}
-
 impl Repo {
     // new expects an existing git repo
     pub fn new(conf: cfg::Config) -> Result<Repo, err::Error> {
         let base_path = utils::git_repo_or_err(&conf.path)?;
-        let gitdir = build_path(base_path.clone(), ".git")?;
-        let gitconf_path = build_path(gitdir.clone(), "config")?;
+        let gitdir = utils::build_path(base_path.clone(), ".git")?;
+        let gitconf_path = utils::build_path(gitdir.clone(), "config")?;
         let gitconf = fs::read_to_string(gitconf_path)?;
 
         Ok(Repo {
@@ -81,30 +72,8 @@ pub fn find_gitdir_and_create_repo(conf: cfg::Config) -> Result<Repo, err::Error
     return Ok(Repo::new(updated_conf)?);
 }
 
-pub fn content_length(path: &Path) -> Result<u64, err::Error> {
-    Ok(metadata(path)?.len())
-}
-
-pub fn path_exists(path: &Path) -> bool {
-    metadata(path).is_ok()
-}
-
-fn git_obj_path_from_sha(sha: &str, repo: Repo) -> Result<PathBuf, err::Error> {
-    let obj_path = repo
-        .worktree
-        .join(format!(".git/objects/{}/{}", &sha[..2], &sha[2..]));
-
-    if path_exists(&obj_path) {
-        return Ok(obj_path.to_path_buf());
-    } else {
-        return Err(err::Error::GitObjPathDoesntExist(
-            obj_path.display().to_string(),
-        ));
-    }
-}
-
 pub fn read_object(sha: &str, repo: Repo) -> Result<String, err::Error> {
-    let obj_path = git_obj_path_from_sha(sha, repo)?;
+    let obj_path = utils::git_obj_path_from_sha(sha, repo)?;
     let contents = read(&obj_path)?;
 
     let decoded = match inflate_bytes_zlib(&contents) {
@@ -114,7 +83,7 @@ pub fn read_object(sha: &str, repo: Repo) -> Result<String, err::Error> {
 
     let gitobject = objp::parse_git_obj(&decoded, &obj_path)?;
     if gitobject.len != gitobject.contents.len() {
-        return Err(err::Error::GitMalformedObject)
+        return Err(err::Error::GitMalformedObject);
     }
 
     return Ok(from_utf8(gitobject.contents)?.to_owned());
@@ -130,7 +99,7 @@ pub fn write_object(src: SourceFile, repo: Option<Repo>) -> Result<String, err::
         _ => panic!("only implemented for Blobs!"),
     };
 
-    let length = content_length(&path)?.to_string();
+    let length = utils::content_length(&path)?.to_string();
     let contents = read(&path)?;
     let contents_with_header = [
         "blob".as_bytes(),
@@ -149,11 +118,11 @@ pub fn write_object(src: SourceFile, repo: Option<Repo>) -> Result<String, err::
         let git_obj_dir = repo.worktree.join(format!(".git/objects/{}", &hash[..2]));
         let git_obj_path = git_obj_dir.join(format!("{}", &hash[2..]));
 
-        if !path_exists(&git_obj_dir) {
+        if !utils::path_exists(&git_obj_dir) {
             create_dir(&git_obj_dir)?;
         }
 
-        if !path_exists(&git_obj_path) {
+        if !utils::path_exists(&git_obj_path) {
             let obj_file = File::create(&git_obj_path)?;
             let mut encoder = ZlibEncoder::new(obj_file, Compression::Default);
             encoder.write_all(&contents_with_header)?;
@@ -266,7 +235,7 @@ mod object_tests {
             worktree
                 .path()
                 .join(format!(".git/objects/{}/{}", &hash[..2], &hash[2..]));
-        assert_eq!(22, content_length(&git_obj_path)?);
+        assert_eq!(22, utils::content_length(&git_obj_path)?);
 
         let obj_contents = read_object(&hash, repo_clone)?;
         assert_eq!("foobar\n", obj_contents);

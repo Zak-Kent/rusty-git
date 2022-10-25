@@ -1,10 +1,12 @@
-use std::fs::{create_dir_all, File};
+use std::fs::{create_dir_all, metadata, File};
 use std::io::{Error, Write};
 use std::path::{Path, PathBuf};
 use tempfile::{tempdir, TempDir};
 
 use crate::error as err;
+use crate::objects as obj;
 
+// ----------- test utils ---------------
 pub fn test_tempdir() -> Result<TempDir, Error> {
     let tmp_dir = tempdir()?;
     Ok(tmp_dir)
@@ -25,9 +27,10 @@ pub fn test_cmd(cmd: &str, arg: Option<&str>) -> Vec<String> {
         cmd_result.push(arg.to_owned());
     }
 
-    return cmd_result
+    return cmd_result;
 }
 
+// ----------- git utils ---------------
 pub fn is_git_repo(path: &Path) -> bool {
     let gitdir = path.join(".git");
     let conf = path.join(".git/config");
@@ -70,6 +73,38 @@ pub fn create_git_repo(path: &Path) -> Result<Option<String>, err::Error> {
     let mut config = File::create(path.join(".git/config"))?;
     writeln!(config, "{}", default_repo_config())?;
     Ok(None)
+}
+
+pub fn git_obj_path_from_sha(sha: &str, repo: obj::Repo) -> Result<PathBuf, err::Error> {
+    let obj_path = repo
+        .worktree
+        .join(format!(".git/objects/{}/{}", &sha[..2], &sha[2..]));
+
+    if path_exists(&obj_path) {
+        return Ok(obj_path.to_path_buf());
+    } else {
+        return Err(err::Error::GitObjPathDoesntExist(
+            obj_path.display().to_string(),
+        ));
+    }
+}
+
+// ----------- fs utils ---------------
+pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
+    path.push(ext);
+    if path.exists() {
+        return Ok(path);
+    } else {
+        Err(err::Error::PathDoesntExist(path.display().to_string()))
+    }
+}
+
+pub fn content_length(path: &Path) -> Result<u64, err::Error> {
+    Ok(metadata(path)?.len())
+}
+
+pub fn path_exists(path: &Path) -> bool {
+    metadata(path).is_ok()
 }
 
 #[cfg(test)]
