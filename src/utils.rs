@@ -77,10 +77,10 @@ pub fn create_git_repo(path: &Path) -> Result<Option<String>, err::Error> {
 
 pub fn git_obj_path_from_sha(sha: &str, repo: obj::Repo) -> Result<PathBuf, err::Error> {
     let obj_path = repo
-        .worktree
-        .join(format!(".git/objects/{}/{}", &sha[..2], &sha[2..]));
+        .gitdir
+        .join(format!("objects/{}/{}", &sha[..2], &sha[2..]));
 
-    if path_exists(&obj_path) {
+    if obj_path.exists() {
         return Ok(obj_path.to_path_buf());
     } else {
         return Err(err::Error::GitObjPathDoesntExist(
@@ -101,10 +101,6 @@ pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
 
 pub fn content_length(path: &Path) -> Result<u64, err::Error> {
     Ok(metadata(path)?.len())
-}
-
-pub fn path_exists(path: &Path) -> bool {
-    metadata(path).is_ok()
 }
 
 #[cfg(test)]

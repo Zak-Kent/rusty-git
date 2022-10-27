@@ -122,11 +122,11 @@ pub fn write_object(src: SourceFile, repo: Option<Repo>) -> Result<String, err::
         let git_obj_dir = repo.worktree.join(format!(".git/objects/{}", &hash[..2]));
         let git_obj_path = git_obj_dir.join(format!("{}", &hash[2..]));
 
-        if !utils::path_exists(&git_obj_dir) {
+        if !git_obj_dir.exists() {
             create_dir(&git_obj_dir)?;
         }
 
-        if !utils::path_exists(&git_obj_path) {
+        if !git_obj_path.exists() {
             let obj_file = File::create(&git_obj_path)?;
             let mut encoder = ZlibEncoder::new(obj_file, Compression::Default);
             encoder.write_all(&contents_with_header)?;
