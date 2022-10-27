@@ -1,6 +1,6 @@
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_till1, take_while, take_while1},
+    bytes::complete::{is_not, tag, take, take_till1, take_while1},
     character::{
         complete::{space0, space1},
         is_newline,
@@ -67,10 +67,10 @@ pub fn parse_git_obj<'a>(
 }
 
 fn parse_kv_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
-    let (input, key) = take_till1(|c| c == b' ')(input)?;
+    let (input, key) = is_not(" \t\r\n")(input)?;
     let (input, _) = space1(input)?;
     let (input, val) = take_till1(|c| c == b'\n')(input)?;
-    let (input, _) = take_while(is_newline)(input)?;
+    let (input, _) = take(1usize)(input)?;
     return Ok((input, (key, val)));
 }
 
@@ -110,7 +110,8 @@ fn parse_kv_list_msg(input: &[u8]) -> Result<KvsMsg, err::Error> {
 }
 
 pub fn parse_git_head(input: &[u8]) -> Result<String, err::Error> {
-    let (_, (_, head_ref)) = parse_kv_pair(input)?;
+    let (input, _key) = is_not(" ")(input)?;
+    let (head_ref, _) = space1(input)?;
     return Ok(from_utf8(head_ref)?.to_owned());
 }
 
@@ -127,10 +128,7 @@ mod object_parsing_tests {
         let gitobject = parse_git_obj(&test_inflated_git_obj, &path).unwrap();
         assert_eq!("git file contents", from_utf8(&gitobject.contents).unwrap());
         assert_eq!(12, gitobject.len);
-        assert_eq!(
-            obj::GitObjTyp::Blob,
-            gitobject.obj
-        );
+        assert_eq!(obj::GitObjTyp::Blob, gitobject.obj);
     }
 
     #[test]
@@ -177,7 +175,7 @@ mod object_parsing_tests {
         let commit_msg = [
             "tree tree-val\n",
             "parent parent-val\n",
-            "             \n",
+            "\n",
             "this is a test commit\n",
             "message",
         ]
