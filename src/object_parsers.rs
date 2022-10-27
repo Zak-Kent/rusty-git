@@ -55,13 +55,13 @@ fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
 pub fn parse_git_obj<'a>(
     input: &'a [u8],
     path: &'a PathBuf,
-) -> Result<obj::GitObject<'a>, err::Error> {
+) -> Result<obj::GitObject, err::Error> {
     let (input, obj) = parse_obj_type(input, path)?;
     let (contents, len) = parse_obj_len(input)?;
     return Ok(obj::GitObject {
         obj,
         len,
-        contents,
+        contents: contents.to_vec(),
         source: path.to_path_buf(),
     });
 }
@@ -120,7 +120,7 @@ mod object_parsing_tests {
             .concat();
         let path = PathBuf::from("foo/path");
         let gitobject = parse_git_obj(&test_inflated_git_obj, &path).unwrap();
-        assert_eq!("git file contents", from_utf8(gitobject.contents).unwrap());
+        assert_eq!("git file contents", from_utf8(&gitobject.contents).unwrap());
         assert_eq!(12, gitobject.len);
         assert_eq!(
             obj::GitObjTyp::Blob,

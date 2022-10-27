@@ -40,7 +40,7 @@ fn cat_file(config: &cfg::Config) -> Result<Option<String>, err::Error> {
     };
     let sha = config.args[0].clone();
     let repo = obj::Repo::new(config.clone())?;
-    let file_contents = obj::read_object(&sha, repo)?;
+    let file_contents = obj::read_object_as_string(&sha, repo)?;
     return Ok(Some(file_contents));
 }
 

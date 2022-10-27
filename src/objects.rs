@@ -21,10 +21,10 @@ pub enum GitObjTyp {
 
 // a file in the .git/objects dir
 #[derive(Debug)]
-pub struct GitObject<'a> {
+pub struct GitObject {
     pub obj: GitObjTyp,
     pub len: usize,
-    pub contents: &'a [u8],
+    pub contents: Vec<u8>,
     pub source: PathBuf,
 }
 
@@ -72,7 +72,7 @@ pub fn find_gitdir_and_create_repo(conf: cfg::Config) -> Result<Repo, err::Error
     return Ok(Repo::new(updated_conf)?);
 }
 
-pub fn read_object(sha: &str, repo: Repo) -> Result<String, err::Error> {
+pub fn read_object(sha: &str, repo: Repo) -> Result<GitObject, err::Error> {
     let obj_path = utils::git_obj_path_from_sha(sha, repo)?;
     let contents = read(&obj_path)?;
 
@@ -85,8 +85,12 @@ pub fn read_object(sha: &str, repo: Repo) -> Result<String, err::Error> {
     if gitobject.len != gitobject.contents.len() {
         return Err(err::Error::GitMalformedObject);
     }
+    return Ok(gitobject);
+}
 
-    return Ok(from_utf8(gitobject.contents)?.to_owned());
+pub fn read_object_as_string(sha: &str, repo: Repo) -> Result<String, err::Error> {
+    let gitobject = read_object(sha, repo)?;
+    return Ok(from_utf8(&gitobject.contents)?.to_owned());
 }
 
 pub fn write_object(src: SourceFile, repo: Option<Repo>) -> Result<String, err::Error> {
@@ -237,7 +241,7 @@ mod object_tests {
                 .join(format!(".git/objects/{}/{}", &hash[..2], &hash[2..]));
         assert_eq!(22, utils::content_length(&git_obj_path)?);
 
-        let obj_contents = read_object(&hash, repo_clone)?;
+        let obj_contents = read_object_as_string(&hash, repo_clone)?;
         assert_eq!("foobar\n", obj_contents);
 
         Ok(())
