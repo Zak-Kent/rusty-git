@@ -109,6 +109,11 @@ fn parse_kv_list_msg(input: &[u8]) -> Result<KvsMsg, err::Error> {
     });
 }
 
+pub fn parse_git_head(input: &[u8]) -> Result<String, err::Error> {
+    let (_, (_, head_ref)) = parse_kv_pair(input)?;
+    return Ok(from_utf8(head_ref)?.to_owned());
+}
+
 #[cfg(test)]
 mod object_parsing_tests {
     use super::*;
@@ -193,5 +198,11 @@ mod object_parsing_tests {
         assert_eq!(2, kvs.keys().count());
         assert_eq!("this is a test commit\nmessage".as_bytes(), msg);
         assert_eq!("tree".as_bytes(), kvs_order[0]);
+    }
+
+    #[test]
+    fn can_parse_git_head() {
+        let head_file = "ref: refs/heads/main".as_bytes();
+        assert_eq!("refs/heads/main", parse_git_head(head_file).unwrap());
     }
 }
