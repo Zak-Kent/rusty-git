@@ -109,4 +109,18 @@ mod object_tests {
         };
         Ok(())
     }
+
+    #[test]
+    fn can_read_sha_from_head() -> Result<(), err::Error> {
+        // TODO: expand this test to cover the log command when added
+        let worktree = utils::test_gitdir().unwrap();
+        let cmd = utils::test_cmd("log", None);
+        let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
+        let repo = obj::Repo::new(config)?;
+        utils::test_add_dummy_commit_and_update_ref_heads(&"fake-head-sha", &repo)?;
+
+        let head_sha = utils::git_sha_from_head(&repo)?;
+        assert_eq!("fake-head-sha", head_sha);
+        Ok(())
+    }
 }

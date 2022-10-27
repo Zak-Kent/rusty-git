@@ -11,6 +11,8 @@ pub enum Error {
     GitMalformedObject,
     #[error("Path doesn't exist for git object: {0}")]
     GitObjPathDoesntExist(String),
+    #[error("Your current branch doesn't have any commits yet")]
+    GitNoCommitsExistYet,
 
     // program errors not related to git
     #[error("Missing a command argument")]

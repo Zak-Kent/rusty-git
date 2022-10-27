@@ -1,9 +1,10 @@
-use std::fs::{create_dir_all, metadata, File};
+use std::fs::{create_dir_all, metadata, read, read_to_string, File};
 use std::io::{Error, Write};
 use std::path::{Path, PathBuf};
 use tempfile::{tempdir, TempDir};
 
 use crate::error as err;
+use crate::object_parsers as objp;
 use crate::objects as obj;
 
 // ----------- test utils ---------------
@@ -28,6 +29,20 @@ pub fn test_cmd(cmd: &str, arg: Option<&str>) -> Vec<String> {
     }
 
     return cmd_result;
+}
+
+#[allow(dead_code)]
+pub fn test_add_dummy_commit_and_update_ref_heads(
+    sha: &str,
+    repo: &obj::Repo,
+) -> Result<(), err::Error> {
+    //TODO: expand this to add an actual commit in .git/objects later
+    let head_path = repo.gitdir.join("HEAD");
+    let head = read(head_path)?;
+    let head_ref = objp::parse_git_head(&head)?;
+    let mut ref_file = File::create(repo.gitdir.join(head_ref))?;
+    writeln!(ref_file, "{}", sha)?;
+    Ok(())
 }
 
 // ----------- git utils ---------------
@@ -87,6 +102,20 @@ pub fn git_obj_path_from_sha(sha: &str, repo: obj::Repo) -> Result<PathBuf, err:
             obj_path.display().to_string(),
         ));
     }
+}
+
+pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
+    let head_path = repo.gitdir.join("HEAD");
+    let head = read(head_path)?;
+    let head_ref = objp::parse_git_head(&head)?;
+    let sha_path = repo.gitdir.join(head_ref);
+
+    if sha_path.exists() {
+        let sha = read_to_string(&sha_path)?.trim().to_owned();
+        return Ok(sha);
+    } else {
+        return Err(err::Error::GitNoCommitsExistYet);
+    };
 }
 
 // ----------- fs utils ---------------
