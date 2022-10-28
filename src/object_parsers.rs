@@ -99,7 +99,7 @@ struct KvsMsg<'a> {
     msg: &'a [u8],
 }
 
-fn parse_kv_list_msg(input: &[u8]) -> Result<KvsMsg, err::Error> {
+pub fn parse_kv_list_msg(input: &[u8]) -> Result<KvsMsg, err::Error> {
     let (input, (kvs_order, kvs)) = parse_kv_pairs(input)?;
     let (input, _) = parse_seperator_line(input)?;
     return Ok(KvsMsg {
@@ -111,7 +111,8 @@ fn parse_kv_list_msg(input: &[u8]) -> Result<KvsMsg, err::Error> {
 
 pub fn parse_git_head(input: &[u8]) -> Result<String, err::Error> {
     let (input, _key) = is_not(" ")(input)?;
-    let (head_ref, _) = space1(input)?;
+    let (input, _) = space1(input)?;
+    let (_, head_ref) = take_till1(is_newline)(input)?;
     return Ok(from_utf8(head_ref)?.to_owned());
 }
 
@@ -169,6 +170,9 @@ mod object_parsing_tests {
             pair_order
         );
     }
+
+
+
 
     #[test]
     fn can_parse_commit_msg() {
