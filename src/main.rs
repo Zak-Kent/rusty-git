@@ -20,6 +20,11 @@ fn main() {
         process::exit(1);
     });
 
+
+
+
+
+
     let output = cmd::run_cmd(&cmd_config, false).unwrap_or_else(|err: err::Error| {
         println!("Error: {}", err);
         process::exit(1);

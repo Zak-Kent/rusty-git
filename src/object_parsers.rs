@@ -74,13 +74,13 @@ fn parse_kv_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
     return Ok((input, (key, val)));
 }
 
-fn parse_kv_pairs(input: &[u8]) -> IResult<&[u8], (Vec<&[u8]>, HashMap<&[u8], &[u8]>)> {
+fn parse_kv_pairs(input: &[u8]) -> IResult<&[u8], (Vec<Vec<u8>>, HashMap<Vec<u8>, Vec<u8>>)> {
     let (input, pairs) = many1(parse_kv_pair)(input)?;
     let mut kvs = HashMap::new();
     let mut insert_order = Vec::new();
     for (k, v) in pairs {
-        insert_order.push(k);
-        kvs.insert(k, v);
+        insert_order.push(k.to_vec());
+        kvs.insert(k.to_vec(), v.to_vec());
     }
     return Ok((input, (insert_order.to_owned(), kvs)));
 }
@@ -93,10 +93,11 @@ fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
 
 // list of key value pairs with msg
 // this format is used for commits and tags
-struct KvsMsg<'a> {
-    kvs: HashMap<&'a [u8], &'a [u8]>,
-    kvs_order: Vec<&'a [u8]>,
-    msg: &'a [u8],
+#[derive(Debug)]
+pub struct KvsMsg {
+    pub kvs: HashMap<Vec<u8>, Vec<u8>>,
+    pub kvs_order: Vec<Vec<u8>>,
+    pub msg: Vec<u8>,
 }
 
 pub fn parse_kv_list_msg(input: &[u8]) -> Result<KvsMsg, err::Error> {
@@ -105,7 +106,7 @@ pub fn parse_kv_list_msg(input: &[u8]) -> Result<KvsMsg, err::Error> {
     return Ok(KvsMsg {
         kvs,
         kvs_order,
-        msg: input,
+        msg: input.to_vec(),
     });
 }
 
