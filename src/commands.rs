@@ -44,6 +44,22 @@ fn cat_file(config: &cfg::Config) -> Result<Option<String>, err::Error> {
     return Ok(Some(file_contents));
 }
 
+fn log(config: &cfg::Config) -> Result<Option<String>, err::Error> {
+    // TODO: move repo creation up a level
+    let repo = obj::Repo::new(config.clone())?;
+
+    let target_commit = match config.args.len() {
+        0 => utils::git_sha_from_head(&repo)?,
+        1 => config.args[0].clone(),
+        _ => return Err(err::Error::UnrecognizedArguments(config.args.clone())),
+    };
+
+    let commit_log = utils::git_follow_commits_to_root(&target_commit, &repo)?;
+    utils::git_print_commit_log(commit_log)?;
+
+    return Ok(Some("".to_owned()));
+}
+
 pub fn run_cmd(config: &cfg::Config, add_repo: bool) -> Result<Option<String>, err::Error> {
     let repo;
     if add_repo {
@@ -56,6 +72,7 @@ pub fn run_cmd(config: &cfg::Config, add_repo: bool) -> Result<Option<String>, e
         cfg::GitCmd::Init => run_init(&config),
         cfg::GitCmd::HashObject => hash_object(&config, repo),
         cfg::GitCmd::CatFile => cat_file(&config),
+        cfg::GitCmd::Log => log(&config),
         _ => return Err(err::Error::UnimplementedCommand),
     }
 }

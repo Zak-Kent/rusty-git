@@ -1,6 +1,7 @@
 use std::fs::{create_dir_all, metadata, read, read_to_string, File};
 use std::io::{Error, Write};
 use std::path::{Path, PathBuf};
+use std::str::from_utf8;
 use tempfile::{tempdir, TempDir};
 
 use crate::error as err;
@@ -116,6 +117,50 @@ pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
     } else {
         return Err(err::Error::GitNoCommitsExistYet);
     };
+}
+
+pub fn git_read_commit(sha: &str, repo: &obj::Repo) -> Result<objp::KvsMsg, err::Error> {
+    let commit = obj::read_object(sha, repo.clone())?;
+    let parsed_commit = objp::parse_kv_list_msg(&commit.contents, sha)?;
+    return Ok(parsed_commit);
+}
+
+pub fn git_follow_commits_to_root(
+    sha: &str,
+    repo: &obj::Repo,
+) -> Result<Vec<objp::KvsMsg>, err::Error> {
+    let mut commit = git_read_commit(sha, &repo)?;
+    let mut commit_log: Vec<objp::KvsMsg> = Vec::new();
+
+    // add the first commit to log
+    commit_log.push(commit.clone());
+
+    while let Some(parent) = &commit.kvs.get("parent".as_bytes()) {
+        let parent_sha = from_utf8(parent)?;
+        commit = git_read_commit(parent_sha, &repo)?;
+
+        // add parent commits to log
+        commit_log.push(commit.clone());
+    }
+
+    // add root commit to log
+    commit_log.push(commit.clone());
+
+    return Ok(commit_log);
+}
+
+pub fn git_print_commit(commit: &objp::KvsMsg) -> Result<(), err::Error> {
+    println!("commit: {}", commit.sha);
+    println!("Author: {}", from_utf8(commit.kvs.get("author".as_bytes()).unwrap())?);
+    println!("\n{}", from_utf8(&commit.msg)?);
+    return Ok(());
+}
+
+pub fn git_print_commit_log(commit_log: Vec<objp::KvsMsg>) -> Result<(), err::Error> {
+    for commit in commit_log {
+        git_print_commit(&commit)?;
+    }
+    return Ok(());
 }
 
 // ----------- fs utils ---------------
