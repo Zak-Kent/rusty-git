@@ -93,20 +93,22 @@ fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
 
 // list of key value pairs with msg
 // this format is used for commits and tags
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct KvsMsg {
     pub kvs: HashMap<Vec<u8>, Vec<u8>>,
     pub kvs_order: Vec<Vec<u8>>,
     pub msg: Vec<u8>,
+    pub sha: String,
 }
 
-pub fn parse_kv_list_msg(input: &[u8]) -> Result<KvsMsg, err::Error> {
+pub fn parse_kv_list_msg(input: &[u8], sha: &str) -> Result<KvsMsg, err::Error> {
     let (input, (kvs_order, kvs)) = parse_kv_pairs(input)?;
     let (input, _) = parse_seperator_line(input)?;
     return Ok(KvsMsg {
         kvs,
         kvs_order,
         msg: input.to_vec(),
+        sha: sha.to_owned(),
     });
 }
 
@@ -187,11 +189,14 @@ mod object_parsing_tests {
         .map(|s| s.as_bytes())
         .concat();
 
+        let fake_sha = "foobar";
+
         let KvsMsg {
             kvs,
             kvs_order,
             msg,
-        } = parse_kv_list_msg(&commit_msg).unwrap();
+            sha,
+        } = parse_kv_list_msg(&commit_msg, &fake_sha).unwrap();
 
         assert_eq!(&"tree-val".as_bytes(), kvs.get("tree".as_bytes()).unwrap());
         assert_eq!(
@@ -201,6 +206,7 @@ mod object_parsing_tests {
         assert_eq!(2, kvs.keys().count());
         assert_eq!("this is a test commit\nmessage".as_bytes(), msg);
         assert_eq!("tree".as_bytes(), kvs_order[0]);
+        assert_eq!("foobar", sha);
     }
 
     #[test]
