@@ -121,6 +121,28 @@ pub fn parse_git_head(input: &[u8]) -> Result<String, err::Error> {
     return Ok(from_utf8(head_ref)?.to_owned());
 }
 
+// a single entry in a GitObjType::Tree file
+#[derive(Debug, PartialEq)]
+pub struct TreeLeaf {
+    pub mode: String,
+    pub path: String,
+    pub sha: String,
+}
+
+pub fn parse_git_tree_leaf(input: &[u8]) -> Result<TreeLeaf, err::Error> {
+    let (input, mode) = is_not(" ")(input)?;
+    let (input, _) = space1(input)?;
+    let (input, path) = take_till1(|c| c == b'\x00')(input)?;
+    let (input, _) = tag(b"\x00")(input)?;
+    let (_, sha) = take_till1(is_newline)(input)?;
+    let (_, _nl) = take(1usize)(input)?; // consume 1 \n
+    return Ok(TreeLeaf {
+        mode: from_utf8(mode)?.to_string(),
+        path: from_utf8(path)?.to_owned(),
+        sha: from_utf8(sha)?.to_owned(),
+    });
+}
+
 #[cfg(test)]
 mod object_parsing_tests {
     use super::*;
@@ -178,9 +200,6 @@ mod object_parsing_tests {
         );
     }
 
-
-
-
     #[test]
     fn can_parse_commit_msg() {
         let commit_msg = [
@@ -217,5 +236,18 @@ mod object_parsing_tests {
     fn can_parse_git_head() {
         let head_file = "ref: refs/heads/main".as_bytes();
         assert_eq!("refs/heads/main", parse_git_head(head_file).unwrap());
+    }
+
+    #[test]
+    fn can_parse_git_tree_leaf() {
+        let leaf = ["100644", " ", "src/foo.txt", "\x00", "abc123sha"]
+            .map(|s| s.as_bytes())
+            .concat();
+        let expected_val = TreeLeaf {
+            mode: "100644".to_owned(),
+            path: "src/foo.txt".to_owned(),
+            sha: "abc123sha".to_owned(),
+        };
+        assert_eq!(expected_val, parse_git_tree_leaf(&leaf).unwrap());
     }
 }
