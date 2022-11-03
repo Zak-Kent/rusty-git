@@ -122,6 +122,18 @@ pub fn parse_git_head(input: &[u8]) -> Result<String, err::Error> {
 }
 
 // a single entry in a GitObjType::Tree file
+type ParsedLeaf<'a> = (&'a [u8], &'a [u8], &'a [u8]);
+
+pub fn parse_git_tree_leaf(input: &[u8]) -> IResult<&[u8], ParsedLeaf> {
+    let (input, mode) = is_not(" ")(input)?;
+    let (input, _) = space1(input)?;
+    let (input, path) = take_till1(|c| c == b'\x00')(input)?;
+    let (input, _) = tag(b"\x00")(input)?;
+    let (input, sha) = take_till1(is_newline)(input)?;
+    let (input, _nl) = take(1usize)(input)?; // consume 1 \n
+    return Ok((input, ParsedLeaf::from((mode, path, sha))));
+}
+
 #[derive(Debug, PartialEq)]
 pub struct TreeLeaf {
     pub mode: String,
@@ -129,18 +141,24 @@ pub struct TreeLeaf {
     pub sha: String,
 }
 
-pub fn parse_git_tree_leaf(input: &[u8]) -> Result<TreeLeaf, err::Error> {
-    let (input, mode) = is_not(" ")(input)?;
-    let (input, _) = space1(input)?;
-    let (input, path) = take_till1(|c| c == b'\x00')(input)?;
-    let (input, _) = tag(b"\x00")(input)?;
-    let (_, sha) = take_till1(is_newline)(input)?;
-    let (_, _nl) = take(1usize)(input)?; // consume 1 \n
-    return Ok(TreeLeaf {
-        mode: from_utf8(mode)?.to_string(),
-        path: from_utf8(path)?.to_owned(),
-        sha: from_utf8(sha)?.to_owned(),
-    });
+#[derive(Debug, PartialEq)]
+pub struct Tree {
+    contents: Vec<TreeLeaf>,
+}
+
+pub fn parse_git_tree(input: &[u8]) -> Result<Tree, err::Error> {
+    let (_, leaves) = many1(parse_git_tree_leaf)(input)?;
+    let mut contents: Vec<TreeLeaf> = Vec::new();
+
+    for (mode, path, sha) in leaves {
+        contents.push(TreeLeaf {
+            mode: from_utf8(mode)?.to_owned(),
+            path: from_utf8(path)?.to_owned(),
+            sha: from_utf8(sha)?.to_owned(),
+        })
+    }
+
+    return Ok(Tree { contents });
 }
 
 #[cfg(test)]
@@ -240,14 +258,57 @@ mod object_parsing_tests {
 
     #[test]
     fn can_parse_git_tree_leaf() {
-        let leaf = ["100644", " ", "src/foo.txt", "\x00", "abc123sha"]
+        let leaf = ["100644", " ", "src/foo.txt", "\x00", "abc123sha\n"]
             .map(|s| s.as_bytes())
             .concat();
-        let expected_val = TreeLeaf {
-            mode: "100644".to_owned(),
-            path: "src/foo.txt".to_owned(),
-            sha: "abc123sha".to_owned(),
+        let expected_val = ParsedLeaf::from((b"100644", b"src/foo.txt", b"abc123sha"));
+        let (leftover, leafvals) = parse_git_tree_leaf(&leaf).unwrap();
+        assert_eq!(expected_val, leafvals);
+        assert_eq!(0, leftover.len());
+    }
+
+    #[test]
+    fn can_parse_git_tree_file() {
+        let tree_file = [
+            "100644",
+            " ",
+            "src/foo.txt",
+            "\x00",
+            "abc123sha\n",
+            "040000",
+            " ",
+            "tests",
+            "\x00",
+            "def456sha\n",
+            "100644",
+            " ",
+            "src/bar.txt",
+            "\x00",
+            "ghi789sha\n",
+        ]
+        .map(|s| s.as_bytes())
+        .concat();
+
+        let expected_val = Tree {
+            contents: Vec::from([
+                TreeLeaf {
+                    mode: "100644".to_owned(),
+                    path: "src/foo.txt".to_owned(),
+                    sha: "abc123sha".to_owned(),
+                },
+                TreeLeaf {
+                    mode: "040000".to_owned(),
+                    path: "tests".to_owned(),
+                    sha: "def456sha".to_owned(),
+                },
+                TreeLeaf {
+                    mode: "100644".to_owned(),
+                    path: "src/bar.txt".to_owned(),
+                    sha: "ghi789sha".to_owned(),
+                },
+            ]),
         };
-        assert_eq!(expected_val, parse_git_tree_leaf(&leaf).unwrap());
+        let tree = parse_git_tree(&tree_file).unwrap();
+        assert_eq!(expected_val, tree);
     }
 }
