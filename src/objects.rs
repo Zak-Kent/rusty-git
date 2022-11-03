@@ -26,6 +26,7 @@ pub struct GitObject {
     pub len: usize,
     pub contents: Vec<u8>,
     pub source: PathBuf,
+    pub sha: String,
 }
 
 // a file that is being fed into git
@@ -81,7 +82,7 @@ pub fn read_object(sha: &str, repo: Repo) -> Result<GitObject, err::Error> {
         Err(e) => return Err(err::Error::InflatingGitObj(e)),
     };
 
-    let gitobject = objp::parse_git_obj(&decoded, &obj_path)?;
+    let gitobject = objp::parse_git_obj(&decoded, &obj_path, &sha)?;
     if gitobject.len != gitobject.contents.len() {
         return Err(err::Error::GitMalformedObject);
     }
