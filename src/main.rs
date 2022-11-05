@@ -1,31 +1,20 @@
+use clap::{Parser, Subcommand};
 use std::env;
 use std::process;
 
+mod cli;
 mod commands;
-mod config;
 mod error;
+mod object_parsers;
 mod objects;
 mod utils;
-mod object_parsers;
 
 use crate::commands as cmd;
-use crate::config as cfg;
 use crate::error as err;
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-
-    let cmd_config = cfg::Config::new(args, None).unwrap_or_else(|err: err::Error| {
-        println!("Error: {}", err);
-        process::exit(1);
-    });
-
-
-
-
-
-
-    let output = cmd::run_cmd(&cmd_config, false).unwrap_or_else(|err: err::Error| {
+    let cli = cli::Cli::parse();
+    let output = cmd::run_cmd(&cli, false).unwrap_or_else(|err: err::Error| {
         println!("Error: {}", err);
         process::exit(1);
     });

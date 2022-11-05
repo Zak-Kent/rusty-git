@@ -7,7 +7,6 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::str::from_utf8;
 
-use crate::config as cfg;
 use crate::error as err;
 use crate::object_parsers as objp;
 use crate::utils;
@@ -45,8 +44,8 @@ pub struct Repo {
 
 impl Repo {
     // new expects an existing git repo
-    pub fn new(conf: cfg::Config) -> Result<Repo, err::Error> {
-        let base_path = utils::git_repo_or_err(&conf.path)?;
+    pub fn new(path: PathBuf) -> Result<Repo, err::Error> {
+        let base_path = utils::git_repo_or_err(&PathBuf::from(path))?;
         let gitdir = utils::build_path(base_path.clone(), ".git")?;
         let gitconf_path = utils::build_path(gitdir.clone(), "config")?;
         let gitconf = fs::read_to_string(gitconf_path)?;
@@ -59,8 +58,9 @@ impl Repo {
     }
 }
 
-pub fn find_gitdir_and_create_repo(conf: cfg::Config) -> Result<Repo, err::Error> {
-    let mut path = conf.path;
+pub fn find_gitdir_and_create_repo(path: String) -> Result<Repo, err::Error> {
+    let mut path = PathBuf::from(path);
+
     while !utils::is_git_repo(&path) {
         if let Some(p) = path.parent() {
             path = p.to_path_buf();
@@ -69,8 +69,7 @@ pub fn find_gitdir_and_create_repo(conf: cfg::Config) -> Result<Repo, err::Error
         }
     }
 
-    let updated_conf = cfg::Config { path, ..conf };
-    return Ok(Repo::new(updated_conf)?);
+    return Ok(Repo::new(path)?);
 }
 
 pub fn read_object(sha: &str, repo: Repo) -> Result<GitObject, err::Error> {
@@ -161,18 +160,14 @@ mod object_tests {
     #[test]
     fn repo_struct_creation_succeeds_when_in_git_repo() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
-        let cmd = utils::test_cmd("init", None);
-        let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
-        let _repo = Repo::new(config)?;
+        let _repo = Repo::new(worktree.path().to_path_buf())?;
         Ok(())
     }
 
     #[test]
     fn repo_struct_creation_fails_when_not_in_git_repo() -> Result<(), err::Error> {
         let tmpdir = utils::test_tempdir().unwrap();
-        let cmd = utils::test_cmd("add", None);
-        let config = cfg::Config::new(cmd, Some(tmpdir.path().to_path_buf()))?;
-        let repo = Repo::new(config);
+        let repo = Repo::new(tmpdir.path().to_path_buf());
         assert!(repo.is_err());
         match repo {
             Err(err::Error::GitNotARepo) => assert!(true),
@@ -189,9 +184,7 @@ mod object_tests {
         let nested_path = worktree.path().join("foo/bar/baz");
         create_dir_all(&nested_path)?;
 
-        let cmd = utils::test_cmd("add", None);
-        let config = cfg::Config::new(cmd, Some(nested_path))?;
-        let repo = find_gitdir_and_create_repo(config)?;
+        let repo = find_gitdir_and_create_repo(nested_path.to_str().unwrap().to_owned())?;
 
         // check nested path was discarded when creating Repo.worktree
         assert_eq!(worktree.path(), repo.worktree);
@@ -201,10 +194,8 @@ mod object_tests {
     #[test]
     fn find_gitdir_and_create_repo_errors_when_no_gitdir_in_path() -> Result<(), err::Error> {
         let tmpdir = utils::test_tempdir().unwrap();
-        let cmd = utils::test_cmd("add", None);
-        let config = cfg::Config::new(cmd, Some(tmpdir.path().to_path_buf()))?;
 
-        let repo = find_gitdir_and_create_repo(config);
+        let repo = find_gitdir_and_create_repo(tmpdir.path().to_str().unwrap().to_owned());
         match repo {
             Err(err::Error::GitNotARepo) => assert!(true),
             _ => panic!("Repo creation should error!"),
@@ -215,10 +206,7 @@ mod object_tests {
     #[test]
     fn generate_hash_and_write_compressed_file() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
-        // TODO might want to reconsider the threading of args here wrt hash-object
-        let cmd = utils::test_cmd("hash-object", None);
-        let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
-        let repo = Repo::new(config)?;
+        let repo = Repo::new(worktree.path().to_path_buf())?;
         let repo_clone = repo.clone();
 
         let fp = worktree.path().join("tempfoo");

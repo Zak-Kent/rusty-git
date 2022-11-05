@@ -14,6 +14,7 @@ pub enum GitCmd {
     },
     /// Print commits starting at the given sha, defaults to HEAD
     Log {
+        //TODO: check why default is winning every time???
         #[arg(default_value_t = String::from("HEAD"))]
         sha: String,
     }
@@ -23,4 +24,18 @@ pub enum GitCmd {
 pub struct Cli {
     #[command(subcommand)]
     pub command: GitCmd,
+    /// Sets the path of the repo where git command will be executed
+    #[arg(default_value_t = String::from("."))]
+    pub repo_path: String,
+}
+
+#[cfg(test)]
+mod cli_tests {
+    use super::*;
+
+    #[test]
+    fn verify_cli() {
+        use clap::CommandFactory;
+        Cli::command().debug_assert()
+    }
 }

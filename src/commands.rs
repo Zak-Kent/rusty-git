@@ -1,79 +1,67 @@
 use std::path::PathBuf;
 
-use crate::config as cfg;
+use crate::cli;
 use crate::error as err;
 use crate::objects as obj;
 use crate::utils;
 
-fn run_init(config: &cfg::Config) -> Result<Option<String>, err::Error> {
-    return Ok(utils::create_git_repo(&config.path)?);
+fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
+    let repo_path = PathBuf::from(&cmd.repo_path);
+    return Ok(utils::create_git_repo(&repo_path)?);
 }
 
 fn hash_object(
-    config: &cfg::Config,
-    repo: Option<obj::Repo>,
+    path: String,
+    repo: obj::Repo,
+    write_object: bool,
 ) -> Result<Option<String>, err::Error> {
-    match config.args.len() {
-        0 => return Err(err::Error::MissingPathArgument),
-        1 => (), // expects 1 path arg so do nothing
-        _ => return Err(err::Error::UnrecognizedArguments(config.args.clone())),
-    };
-    let path: PathBuf = PathBuf::from(&config.args[0]);
+    let path: PathBuf = PathBuf::from(path);
+
     let src = obj::SourceFile {
         typ: obj::GitObjTyp::Blob,
         source: path,
     };
 
     // by passing None to write_object it will only return the hash, no write
-    return Ok(Some(obj::write_object(src, repo)?));
+    let repo_arg;
+    if write_object {
+        repo_arg = Some(repo);
+    } else {
+        repo_arg = None;
+    }
+    return Ok(Some(obj::write_object(src, repo_arg)?));
 }
 
 // This version of cat-file differs from git's due to the fact git expects
 // the object type in the args for the cmd, e.g, 'git cat-file <obj type> <sha>'
 // where this version only needs the sha and then reads the obj type from
 // the compressed file stored at the sha's location
-fn cat_file(config: &cfg::Config) -> Result<Option<String>, err::Error> {
-    match config.args.len() {
-        0 => return Err(err::Error::MissingPathArgument),
-        1 => (), // expects 1 sha arg so do nothing
-        _ => return Err(err::Error::UnrecognizedArguments(config.args.clone())),
-    };
-    let sha = config.args[0].clone();
-    let repo = obj::Repo::new(config.clone())?;
+fn cat_file(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     let file_contents = obj::read_object_as_string(&sha, repo)?;
     return Ok(Some(file_contents));
 }
 
-fn log(config: &cfg::Config) -> Result<Option<String>, err::Error> {
-    // TODO: move repo creation up a level
-    let repo = obj::Repo::new(config.clone())?;
-
-    let target_commit = match config.args.len() {
-        0 => utils::git_sha_from_head(&repo)?,
-        1 => config.args[0].clone(),
-        _ => return Err(err::Error::UnrecognizedArguments(config.args.clone())),
+fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
+    let head = "HEAD".to_string();
+    let target_commit = match sha {
+        head => utils::git_sha_from_head(&repo)?,
+        _ => sha
     };
 
     let commit_log = utils::git_follow_commits_to_root(&target_commit, &repo)?;
     utils::git_print_commit_log(commit_log)?;
-
     return Ok(Some("".to_owned()));
 }
 
-pub fn run_cmd(config: &cfg::Config, add_repo: bool) -> Result<Option<String>, err::Error> {
-    let repo;
-    if add_repo {
-        repo = Some(obj::Repo::new(config.clone())?);
-    } else {
-        repo = None;
-    }
+pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
+    let repo = obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?;
+    let command = &cmd.command;
 
-    match config.cmd {
-        cfg::GitCmd::Init => run_init(&config),
-        cfg::GitCmd::HashObject => hash_object(&config, repo),
-        cfg::GitCmd::CatFile => cat_file(&config),
-        cfg::GitCmd::Log => log(&config),
-        _ => return Err(err::Error::UnimplementedCommand),
+    match command {
+        cli::GitCmd::Init => run_init(&cmd),
+        cli::GitCmd::HashObject { path } => hash_object(path.to_owned(), repo, write_object),
+        cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo),
+        cli::GitCmd::Log { sha } => log(sha.to_owned(), repo),
     }
 }
 
@@ -86,44 +74,34 @@ mod object_tests {
     use crate::utils;
 
     #[test]
-    fn hash_object_returns_hash_and_cat_file_reads() -> Result<(), err::Error> {
+    fn hash_object_returns_hash_and_cat_file_reads_test() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
 
         let fp = worktree.path().join("tempfoo");
         let mut tmpfile = File::create(&fp)?;
         writeln!(tmpfile, "foobar")?;
 
-        let cmd = utils::test_cmd("hash-object", Some(&fp.to_str().unwrap()));
-        let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
+        let cmd = cli::Cli {
+            command: cli::GitCmd::HashObject {
+                path: fp.to_str().unwrap().to_owned(),
+            },
+            repo_path: worktree.path().to_str().unwrap().to_owned(),
+        };
 
-        let hash = run_cmd(&config, true)?;
+        let hash = run_cmd(&cmd, true)?;
 
         assert_eq!(
             hash,
             Some("aa161e140ba95d5f611da742cedbdc98d11128a40d89a3c45b3a74f50f970897".to_owned())
         );
 
-        let cat_cmd = utils::test_cmd("cat-file", Some(&hash.unwrap()));
-        let cat_config = cfg::Config::new(cat_cmd, Some(worktree.path().to_path_buf()))?;
-        let file_contents = run_cmd(&cat_config, false)?;
-
-        assert_eq!(file_contents, Some("foobar\n".to_owned()));
-        Ok(())
-    }
-
-    #[test]
-    fn has_object_errors_with_no_path_arg() -> Result<(), err::Error> {
-        let worktree = utils::test_gitdir().unwrap();
-
-        // no path included in hash-object cmd
-        let cmd = utils::test_cmd("hash-object", None);
-        let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
-
-        let missing_path = run_cmd(&config, false);
-        match missing_path {
-            Err(err::Error::MissingPathArgument) => assert!(true),
-            _ => panic!("hash-object should error if no path arg is present"),
+        let cat_cmd = cli::Cli {
+            command: cli::GitCmd::CatFile { sha: hash.unwrap() },
+            repo_path: worktree.path().to_str().unwrap().to_owned(),
         };
+
+        let file_contents = run_cmd(&cat_cmd, false)?;
+        assert_eq!(file_contents, Some("foobar\n".to_owned()));
         Ok(())
     }
 
@@ -131,9 +109,8 @@ mod object_tests {
     fn can_read_sha_from_head() -> Result<(), err::Error> {
         // TODO: expand this test to cover the log command when added
         let worktree = utils::test_gitdir().unwrap();
-        let cmd = utils::test_cmd("log", None);
-        let config = cfg::Config::new(cmd, Some(worktree.path().to_path_buf()))?;
-        let repo = obj::Repo::new(config)?;
+        let repo = obj::Repo::new(worktree.path().to_path_buf())?;
+
         utils::test_add_dummy_commit_and_update_ref_heads(&"fake-head-sha", &repo)?;
 
         let head_sha = utils::git_sha_from_head(&repo)?;
