@@ -15,18 +15,8 @@ pub enum Error {
     GitNoCommitsExistYet,
 
     // program errors not related to git
-    #[error("Missing a command argument")]
-    MissingCommand,
-    #[error("Unsupported command")]
-    UnsupportedCommand,
-    #[error("Unimplemented command")]
-    UnimplementedCommand,
     #[error("Path doesn't exist: {0}")]
     PathDoesntExist(String),
-    #[error("Unrecognized arguments passed in with command: {0:?}")]
-    UnrecognizedArguments(Vec<String>),
-    #[error("Command expects a path as an argument")]
-    MissingPathArgument,
 
     // wrapped errors from external libs or funcs
     #[error("IO error: {0}")]
