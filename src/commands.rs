@@ -42,12 +42,10 @@ fn cat_file(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> 
 }
 
 fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let head = "HEAD".to_string();
-    let target_commit = match sha {
-        head => utils::git_sha_from_head(&repo)?,
-        _ => sha
+    let target_commit = match sha.as_str() {
+        "HEAD" => utils::git_sha_from_head(&repo)?,
+        _ => sha,
     };
-
     let commit_log = utils::git_follow_commits_to_root(&target_commit, &repo)?;
     utils::git_print_commit_log(commit_log)?;
     return Ok(Some("".to_owned()));

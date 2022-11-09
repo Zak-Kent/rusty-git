@@ -14,7 +14,6 @@ pub enum GitCmd {
     },
     /// Print commits starting at the given sha, defaults to HEAD
     Log {
-        //TODO: check why default is winning every time???
         #[arg(default_value_t = String::from("HEAD"))]
         sha: String,
     }
