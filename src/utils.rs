@@ -149,18 +149,23 @@ pub fn git_follow_commits_to_root(
     return Ok(commit_log);
 }
 
-pub fn git_print_commit(commit: &objp::KvsMsg) -> Result<(), err::Error> {
-    println!("commit: {}", commit.sha);
-    println!("Author: {}", from_utf8(commit.kvs.get("author".as_bytes()).unwrap())?);
-    println!("\n{}", from_utf8(&commit.msg)?);
-    return Ok(());
+pub fn git_commit_to_string(commit: &objp::KvsMsg) -> Result<String, err::Error> {
+    let mut output = String::new();
+    output.push_str(&format!("commit: {}\n", commit.sha));
+    output.push_str(&format!(
+        "Author: {}\n",
+        from_utf8(commit.kvs.get("author".as_bytes()).unwrap())?
+    ));
+    output.push_str(&format!("\n{}\n", from_utf8(&commit.msg)?));
+    return Ok(output);
 }
 
-pub fn git_print_commit_log(commit_log: Vec<objp::KvsMsg>) -> Result<(), err::Error> {
+pub fn git_commit_log_to_string(commit_log: Vec<objp::KvsMsg>) -> Result<String, err::Error> {
+    let mut output = String::new();
     for commit in commit_log {
-        git_print_commit(&commit)?;
+        output.push_str(&git_commit_to_string(&commit)?);
     }
-    return Ok(());
+    return Ok(output);
 }
 
 // ----------- fs utils ---------------

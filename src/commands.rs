@@ -47,8 +47,8 @@ fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
         _ => sha,
     };
     let commit_log = utils::git_follow_commits_to_root(&target_commit, &repo)?;
-    utils::git_print_commit_log(commit_log)?;
-    return Ok(Some("".to_owned()));
+    let output = utils::git_commit_log_to_string(commit_log)?;
+    return Ok(Some(output));
 }
 
 pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
