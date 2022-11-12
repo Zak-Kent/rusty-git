@@ -168,6 +168,18 @@ pub fn git_commit_log_to_string(commit_log: Vec<objp::KvsMsg>) -> Result<String,
     return Ok(output);
 }
 
+pub fn git_tree_leaf_to_string(objp::TreeLeaf { mode, path, sha }: &objp::TreeLeaf) -> String {
+    return format!("{mode} {sha} {path}\n");
+}
+
+pub fn git_tree_to_string(objp::Tree { contents }: objp::Tree) -> String {
+    let mut output = String::new();
+    for leaf in contents {
+        output.push_str(&git_tree_leaf_to_string(&leaf));
+    }
+    return output;
+}
+
 // ----------- fs utils ---------------
 pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     path.push(ext);

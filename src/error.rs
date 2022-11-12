@@ -13,6 +13,8 @@ pub enum Error {
     GitObjPathDoesntExist(String),
     #[error("Your current branch doesn't have any commits yet")]
     GitNoCommitsExistYet,
+    #[error("ls-tree called with wrong object type: {0} is not a Tree. Check your sha.")]
+    GitLsTreeWrongObjType(String),
 
     // program errors not related to git
     #[error("Path doesn't exist: {0}")]

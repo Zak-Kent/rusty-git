@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use crate::cli;
 use crate::error as err;
+use crate::object_parsers as objp;
 use crate::objects as obj;
 use crate::utils;
 
@@ -51,6 +52,17 @@ fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     return Ok(Some(output));
 }
 
+fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
+    let obj::GitObject { obj, contents, .. } = obj::read_object(&sha, repo)?;
+    if obj != obj::GitObjTyp::Tree {
+        return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
+    } else {
+        let tree = objp::parse_git_tree(&contents)?;
+        let output = utils::git_tree_to_string(tree);
+        return Ok(Some(output));
+    }
+}
+
 pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
     let repo = obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?;
     let command = &cmd.command;
@@ -60,6 +72,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
         cli::GitCmd::HashObject { path } => hash_object(path.to_owned(), repo, write_object),
         cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo),
         cli::GitCmd::Log { sha } => log(sha.to_owned(), repo),
+        cli::GitCmd::LsTree { sha } => lstree(sha.to_owned(), repo),
     }
 }
 

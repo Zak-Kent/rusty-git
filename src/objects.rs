@@ -58,6 +58,7 @@ impl Repo {
     }
 }
 
+#[allow(dead_code)]
 pub fn find_gitdir_and_create_repo(path: String) -> Result<Repo, err::Error> {
     let mut path = PathBuf::from(path);
 

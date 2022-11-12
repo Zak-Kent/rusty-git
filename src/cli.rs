@@ -16,7 +16,11 @@ pub enum GitCmd {
     Log {
         #[arg(default_value_t = String::from("HEAD"))]
         sha: String,
-    }
+    },
+    /// Print contents of a tree object
+    LsTree {
+        sha: String
+    },
 }
 
 #[derive(Parser, Debug)]
