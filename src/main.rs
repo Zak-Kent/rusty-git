@@ -1,5 +1,4 @@
-use clap::{Parser, Subcommand};
-use std::env;
+use clap::Parser;
 use std::process;
 
 mod cli;

@@ -63,6 +63,10 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     }
 }
 
+fn checkout(commit: &str, dir: &str) -> Result<Option<String>, err::Error> {
+    return Ok(None);
+}
+
 pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
     let repo = obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?;
     let command = &cmd.command;
@@ -73,6 +77,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
         cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo),
         cli::GitCmd::Log { sha } => log(sha.to_owned(), repo),
         cli::GitCmd::LsTree { sha } => lstree(sha.to_owned(), repo),
+        cli::GitCmd::Checkout { commit, dir } => checkout(commit, dir),
     }
 }
 
