@@ -198,6 +198,28 @@ pub fn dir_is_empty(path: &Path) -> Result<bool, err::Error> {
     return Ok(path.try_exists()? && path.read_dir()?.next().is_none());
 }
 
+fn dir_path_to_string(path: &Path) -> Result<String, err::Error> {
+    if let Some(dir_name) = path.to_str() {
+        return Ok(dir_name.to_owned());
+    } else {
+        println!("couldn't convert dir to str: {:?}", path);
+        return Err(err::Error::DirNameToUtf8Conversion);
+    }
+}
+
+pub fn dir_ok_for_checkout(path: &Path) -> Result<bool, err::Error> {
+    match path.try_exists()? {
+        true => true,
+        false => return Err(err::Error::TargetDirDoesntExist(dir_path_to_string(path)?)),
+    };
+
+    if path.read_dir()?.next().is_none() {
+        return Ok(true);
+    } else {
+        return Err(err::Error::TargetDirNotEmpty(dir_path_to_string(path)?));
+    }
+}
+
 #[cfg(test)]
 mod utils_tests {
     use ini;

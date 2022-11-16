@@ -19,6 +19,12 @@ pub enum Error {
     // program errors not related to git
     #[error("Path doesn't exist: {0}")]
     PathDoesntExist(String),
+    #[error("Target dir: {0} isn't empty")]
+    TargetDirNotEmpty(String),
+    #[error("Target dir: {0} doesn't exist")]
+    TargetDirDoesntExist(String),
+    #[error("Couldn't convert dir name to utf8")]
+    DirNameToUtf8Conversion,
 
     // wrapped errors from external libs or funcs
     #[error("IO error: {0}")]

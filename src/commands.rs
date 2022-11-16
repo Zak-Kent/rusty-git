@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use crate::cli;
 use crate::error as err;
@@ -63,7 +63,8 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     }
 }
 
-fn checkout(commit: &str, dir: &str) -> Result<Option<String>, err::Error> {
+fn checkout(commit: &str, dir: &Path) -> Result<Option<String>, err::Error> {
+    utils::dir_ok_for_checkout(dir)?;
     return Ok(None);
 }
 
@@ -77,7 +78,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
         cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo),
         cli::GitCmd::Log { sha } => log(sha.to_owned(), repo),
         cli::GitCmd::LsTree { sha } => lstree(sha.to_owned(), repo),
-        cli::GitCmd::Checkout { commit, dir } => checkout(commit, dir),
+        cli::GitCmd::Checkout { commit, dir } => checkout(commit, Path::new(dir)),
     }
 }
 
