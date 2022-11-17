@@ -21,9 +21,9 @@ pub enum GitCmd {
     LsTree {
         sha: String
     },
-    /// Checkout a commit in a given directory, the directory must be empty
+    /// Checkout a given sha in a given directory, the directory must be empty and created beforehand
     Checkout {
-        commit: String,
+        sha: String,
         dir: String
     }
 }

@@ -15,6 +15,12 @@ pub enum Error {
     GitNoCommitsExistYet,
     #[error("ls-tree called with wrong object type: {0} is not a Tree. Check your sha.")]
     GitLsTreeWrongObjType(String),
+    #[error("checkout called with wrong object type: {0} is not a Tree or Commit. Check your sha.")]
+    GitCheckoutWrongObjType(String),
+    #[error("Git commit doesn't have a tree entry")]
+    GitNoTreeKeyInCommit,
+    #[error("Git tree contains object other than blob or tree")]
+    GitTreeInvalidObject,
 
     // program errors not related to git
     #[error("Path doesn't exist: {0}")]

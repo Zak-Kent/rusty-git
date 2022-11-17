@@ -63,8 +63,24 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     }
 }
 
-fn checkout(commit: &str, dir: &Path) -> Result<Option<String>, err::Error> {
+fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     utils::dir_ok_for_checkout(dir)?;
+
+    let obj::GitObject {
+        obj, contents, sha, ..
+    } = obj::read_object(&sha, &repo)?;
+    match obj {
+        obj::GitObjTyp::Commit => {
+            let tree = utils::git_get_tree_from_commit(&sha, &contents, &repo)?;
+            utils::git_checkout_tree(tree, dir, &repo)?;
+        }
+        obj::GitObjTyp::Tree => {
+            let tree = objp::parse_git_tree(&contents)?;
+            utils::git_checkout_tree(tree, dir, &repo)?;
+        }
+        _ => return Err(err::Error::GitCheckoutWrongObjType(format!("{:?}", obj))),
+    };
+
     return Ok(None);
 }
 
@@ -78,7 +94,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
         cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo),
         cli::GitCmd::Log { sha } => log(sha.to_owned(), repo),
         cli::GitCmd::LsTree { sha } => lstree(sha.to_owned(), repo),
-        cli::GitCmd::Checkout { commit, dir } => checkout(commit, Path::new(dir)),
+        cli::GitCmd::Checkout { sha, dir } => checkout(sha, Path::new(dir), repo),
     }
 }
 
