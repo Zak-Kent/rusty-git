@@ -73,8 +73,8 @@ pub fn find_gitdir_and_create_repo(path: String) -> Result<Repo, err::Error> {
     return Ok(Repo::new(path)?);
 }
 
-pub fn read_object(sha: &str, repo: Repo) -> Result<GitObject, err::Error> {
-    let obj_path = utils::git_obj_path_from_sha(sha, repo)?;
+pub fn read_object(sha: &str, repo: &Repo) -> Result<GitObject, err::Error> {
+    let obj_path = utils::git_obj_path_from_sha(sha, &repo)?;
     let contents = read(&obj_path)?;
 
     let decoded = match inflate_bytes_zlib(&contents) {
@@ -89,12 +89,12 @@ pub fn read_object(sha: &str, repo: Repo) -> Result<GitObject, err::Error> {
     return Ok(gitobject);
 }
 
-pub fn read_object_as_string(sha: &str, repo: Repo) -> Result<String, err::Error> {
-    let gitobject = read_object(sha, repo)?;
+pub fn read_object_as_string(sha: &str, repo: &Repo) -> Result<String, err::Error> {
+    let gitobject = read_object(sha, &repo)?;
     return Ok(from_utf8(&gitobject.contents)?.to_owned());
 }
 
-pub fn write_object(src: SourceFile, repo: Option<Repo>) -> Result<String, err::Error> {
+pub fn write_object(src: SourceFile, repo: Option<&Repo>) -> Result<String, err::Error> {
     let path = match src {
         SourceFile {
             typ: GitObjTyp::Blob,
@@ -208,7 +208,6 @@ mod object_tests {
     fn generate_hash_and_write_compressed_file() -> Result<(), err::Error> {
         let worktree = utils::test_gitdir().unwrap();
         let repo = Repo::new(worktree.path().to_path_buf())?;
-        let repo_clone = repo.clone();
 
         let fp = worktree.path().join("tempfoo");
         let mut tmpfile = File::create(&fp)?;
@@ -218,7 +217,7 @@ mod object_tests {
             typ: GitObjTyp::Blob,
             source: fp.to_owned(),
         };
-        let hash = write_object(src, Some(repo))?;
+        let hash = write_object(src, Some(&repo))?;
 
         assert_eq!(
             hash,
@@ -231,7 +230,7 @@ mod object_tests {
                 .join(format!(".git/objects/{}/{}", &hash[..2], &hash[2..]));
         assert_eq!(22, utils::content_length(&git_obj_path)?);
 
-        let obj_contents = read_object_as_string(&hash, repo_clone)?;
+        let obj_contents = read_object_as_string(&hash, &repo)?;
         assert_eq!("foobar\n", obj_contents);
 
         Ok(())

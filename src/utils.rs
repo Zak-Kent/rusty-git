@@ -91,7 +91,7 @@ pub fn create_git_repo(path: &Path) -> Result<Option<String>, err::Error> {
     Ok(None)
 }
 
-pub fn git_obj_path_from_sha(sha: &str, repo: obj::Repo) -> Result<PathBuf, err::Error> {
+pub fn git_obj_path_from_sha(sha: &str, repo: &obj::Repo) -> Result<PathBuf, err::Error> {
     let obj_path = repo
         .gitdir
         .join(format!("objects/{}/{}", &sha[..2], &sha[2..]));
@@ -120,7 +120,7 @@ pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
 }
 
 pub fn git_read_commit(sha: &str, repo: &obj::Repo) -> Result<objp::KvsMsg, err::Error> {
-    let commit = obj::read_object(sha, repo.clone())?;
+    let commit = obj::read_object(sha, repo)?;
     let parsed_commit = objp::parse_kv_list_msg(&commit.contents, sha)?;
     return Ok(parsed_commit);
 }

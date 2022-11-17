@@ -26,7 +26,7 @@ fn hash_object(
     // by passing None to write_object it will only return the hash, no write
     let repo_arg;
     if write_object {
-        repo_arg = Some(repo);
+        repo_arg = Some(&repo);
     } else {
         repo_arg = None;
     }
@@ -38,7 +38,7 @@ fn hash_object(
 // where this version only needs the sha and then reads the obj type from
 // the compressed file stored at the sha's location
 fn cat_file(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let file_contents = obj::read_object_as_string(&sha, repo)?;
+    let file_contents = obj::read_object_as_string(&sha, &repo)?;
     return Ok(Some(file_contents));
 }
 
@@ -53,7 +53,7 @@ fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
 }
 
 fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let obj::GitObject { obj, contents, .. } = obj::read_object(&sha, repo)?;
+    let obj::GitObject { obj, contents, .. } = obj::read_object(&sha, &repo)?;
     if obj != obj::GitObjTyp::Tree {
         return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
     } else {
