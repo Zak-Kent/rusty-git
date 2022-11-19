@@ -225,6 +225,15 @@ pub fn git_checkout_tree(
     return Ok(());
 }
 
+pub fn git_resolve_ref(ref_path: &Path, repo: &obj::Repo) -> Result<String, err::Error> {
+    let data = read_to_string(repo.gitdir.join(ref_path))?;
+    if "ref: " ==  &data[..5] {
+        git_resolve_ref(&PathBuf::from(data[5..].trim()), repo)
+    } else {
+        return Ok(data.trim().to_owned());
+    }
+}
+
 // ----------- fs utils ---------------
 pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     path.push(ext);
@@ -343,5 +352,23 @@ mod utils_tests {
         let gitdir = test_gitdir().unwrap();
         assert_eq!(Ok(true), dir_is_empty(tempdir.path()));
         assert_eq!(Ok(false), dir_is_empty(gitdir.path()));
+    }
+
+    #[test]
+    fn resolve_ref_follows_indirect_refs_until_direct_ref() {
+        let gitdir = test_gitdir().unwrap();
+
+        let foo_path = gitdir.path().join(".git/refs/heads/foo");
+        let mut foo_ref = File::create(&foo_path).unwrap();
+        writeln!(foo_ref, "ref: refs/heads/bar").unwrap();
+
+        let direct_ref = "123shaABC";
+        let mut bar_ref = File::create(gitdir.path().join(".git/refs/heads/bar")).unwrap();
+        writeln!(bar_ref, "{}",  &direct_ref).unwrap();
+
+        let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
+        let resolved_ref = git_resolve_ref(&foo_path, &repo).unwrap();
+
+        assert_eq!(direct_ref, resolved_ref);
     }
 }
