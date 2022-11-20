@@ -1,4 +1,4 @@
-use std::fs::{create_dir, create_dir_all, metadata, read, read_to_string, File};
+use std::fs::{create_dir, create_dir_all, metadata, read, read_to_string, File, read_dir};
 use std::io::{Error, Write};
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
@@ -232,6 +232,37 @@ pub fn git_resolve_ref(ref_path: &Path, repo: &obj::Repo) -> Result<String, err:
     } else {
         return Ok(data.trim().to_owned());
     }
+}
+
+pub fn git_show_refs(path: Option<&Path>, repo: &obj::Repo) -> Result<Vec<String>, err::Error> {
+    let refs_dir_path = if path == None {
+        repo.gitdir.join("refs/")
+    } else {
+        path.unwrap().to_path_buf()
+    };
+
+    let mut all_refs: Vec<String> = Vec::new();
+    let refs_dir = read_dir(refs_dir_path)?;
+
+    for rf in refs_dir {
+        let rfs_path = &rf?.path();
+        let ref_md = metadata(rfs_path)?;
+
+        if ref_md.is_dir() {
+            let mut nested_refs = git_show_refs(Some(rfs_path), repo)?;
+            all_refs.append(&mut nested_refs);
+        } else {
+            // git_resolve_ref expects paths relative to .git/
+            let clean_rf_path = rfs_path.strip_prefix("./.git/")?.to_owned();
+            let resolved_ref = git_resolve_ref(&clean_rf_path, repo)?;
+            if let Some(clean_path) = clean_rf_path.to_str() {
+                all_refs.push(format!("{resolved_ref} {clean_path}\n"));
+            } else {
+                return Err(err::Error::PathToUtf8Conversion)
+            };
+        }
+    }
+    return Ok(all_refs);
 }
 
 // ----------- fs utils ---------------

@@ -1,4 +1,4 @@
-use std::num::ParseIntError;
+use std::{num::ParseIntError, path::StripPrefixError};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
@@ -31,6 +31,8 @@ pub enum Error {
     TargetDirDoesntExist(String),
     #[error("Couldn't convert dir name to utf8")]
     DirNameToUtf8Conversion,
+    #[error("Path wasn't valid utf8")]
+    PathToUtf8Conversion,
 
     // wrapped errors from external libs or funcs
     #[error("IO error: {0}")]
@@ -43,6 +45,8 @@ pub enum Error {
     ParseIntError(#[from] ParseIntError),
     #[error("Nom error: {0}")]
     NomError(String),
+    #[error("StripPrefixError: {0}")]
+    StripPrefixError(#[from] StripPrefixError),
 }
 
 // the thiserror lib automatically does similar error

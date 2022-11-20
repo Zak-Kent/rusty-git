@@ -25,7 +25,9 @@ pub enum GitCmd {
     Checkout {
         sha: String,
         dir: String
-    }
+    },
+    /// Display refs available in local repo along with associated commit IDs
+    ShowRef,
 }
 
 #[derive(Parser, Debug)]

@@ -84,6 +84,11 @@ fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, er
     return Ok(None);
 }
 
+fn show_ref(repo: obj::Repo) -> Result<Option<String>, err::Error> {
+    let refs = utils::git_show_refs(None, &repo)?.concat();
+    return Ok(Some(refs));
+}
+
 pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
     let repo = obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?;
     let command = &cmd.command;
@@ -95,6 +100,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
         cli::GitCmd::Log { sha } => log(sha.to_owned(), repo),
         cli::GitCmd::LsTree { sha } => lstree(sha.to_owned(), repo),
         cli::GitCmd::Checkout { sha, dir } => checkout(sha, Path::new(dir), repo),
+        cli::GitCmd::ShowRef => show_ref(repo),
     }
 }
 
