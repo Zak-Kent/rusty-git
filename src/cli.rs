@@ -28,6 +28,17 @@ pub enum GitCmd {
     },
     /// Display refs available in local repo along with associated commit IDs
     ShowRef,
+    /// Create or list tag objects.
+    Tag {
+        /// Name of the tag, if omitted command assumed to be 'rusty-git tag' which lists all tags
+        name: Option<String>,
+        /// Sha of the object that the tag references
+        #[arg(default_value_t = String::from("HEAD"))]
+        object: String,
+        /// If -a flag is set a tag object will be created, if omitted only a .git/refs/tags/<name> file will be created
+        #[arg(short, value_name = "Add tag object", default_value_t = false)]
+        add_object: bool,
+    },
 }
 
 #[derive(Parser, Debug)]

@@ -89,6 +89,19 @@ fn show_ref(repo: obj::Repo) -> Result<Option<String>, err::Error> {
     return Ok(Some(refs));
 }
 
+fn tag(
+    name: &Option<String>,
+    object: &String,
+    add_object: &bool,
+    repo: obj::Repo,
+) -> Result<Option<String>, err::Error> {
+    println!("inside tag");
+    println!("name: {:?}", name);
+    println!("object: {:?}", object);
+    println!("add_object: {:?}", add_object);
+    return Ok(Some("foo".to_owned()));
+}
+
 pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
     let repo = obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?;
     let command = &cmd.command;
@@ -101,6 +114,11 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
         cli::GitCmd::LsTree { sha } => lstree(sha.to_owned(), repo),
         cli::GitCmd::Checkout { sha, dir } => checkout(sha, Path::new(dir), repo),
         cli::GitCmd::ShowRef => show_ref(repo),
+        cli::GitCmd::Tag {
+            name,
+            object,
+            add_object,
+        } => tag(name, object, add_object, repo),
     }
 }
 
