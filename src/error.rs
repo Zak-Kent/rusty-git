@@ -21,6 +21,8 @@ pub enum Error {
     GitNoTreeKeyInCommit,
     #[error("Git tree contains object other than blob or tree")]
     GitTreeInvalidObject,
+    #[error("Git tag -a isn't implemented yet")]
+    GitCreateTagObjectNotImplemented,
 
     // program errors not related to git
     #[error("Path doesn't exist: {0}")]

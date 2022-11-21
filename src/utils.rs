@@ -1,4 +1,4 @@
-use std::fs::{create_dir, create_dir_all, metadata, read, read_to_string, File, read_dir};
+use std::fs::{create_dir, create_dir_all, metadata, read, read_dir, read_to_string, File};
 use std::io::{Error, Write};
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
@@ -227,14 +227,14 @@ pub fn git_checkout_tree(
 
 pub fn git_resolve_ref(ref_path: &Path, repo: &obj::Repo) -> Result<String, err::Error> {
     let data = read_to_string(repo.gitdir.join(ref_path))?;
-    if "ref: " ==  &data[..5] {
+    if "ref: " == &data[..5] {
         git_resolve_ref(&PathBuf::from(data[5..].trim()), repo)
     } else {
         return Ok(data.trim().to_owned());
     }
 }
 
-pub fn git_show_refs(path: Option<&Path>, repo: &obj::Repo) -> Result<Vec<String>, err::Error> {
+pub fn git_gather_refs(path: Option<&Path>, repo: &obj::Repo) -> Result<Vec<String>, err::Error> {
     let refs_dir_path = if path == None {
         repo.gitdir.join("refs/")
     } else {
@@ -249,7 +249,7 @@ pub fn git_show_refs(path: Option<&Path>, repo: &obj::Repo) -> Result<Vec<String
         let ref_md = metadata(rfs_path)?;
 
         if ref_md.is_dir() {
-            let mut nested_refs = git_show_refs(Some(rfs_path), repo)?;
+            let mut nested_refs = git_gather_refs(Some(rfs_path), repo)?;
             all_refs.append(&mut nested_refs);
         } else {
             // git_resolve_ref expects paths relative to .git/
@@ -263,6 +263,29 @@ pub fn git_show_refs(path: Option<&Path>, repo: &obj::Repo) -> Result<Vec<String
         }
     }
     return Ok(all_refs);
+}
+
+pub fn git_list_all_tags(repo: &obj::Repo) -> Result<Vec<String>, err::Error> {
+    let tags_path = repo.gitdir.join("refs/tags/");
+    let tags = git_gather_refs(Some(&tags_path), &repo)?;
+    return Ok(tags);
+}
+
+pub fn git_create_lightweight_tag(
+    tag_name: &String,
+    object: &String,
+    repo: &obj::Repo,
+) -> Result<(), err::Error> {
+    let tag_sha: String;
+    if object == "HEAD" {
+        tag_sha = git_sha_from_head(repo)?;
+    } else {
+        tag_sha = object.to_owned();
+    };
+    let tag_path = repo.gitdir.join(format!("refs/tags/{}", tag_name));
+    let mut tag = File::create(&tag_path)?;
+    writeln!(tag, "{}", tag_sha)?;
+    return Ok(());
 }
 
 // ----------- fs utils ---------------
@@ -395,11 +418,26 @@ mod utils_tests {
 
         let direct_ref = "123shaABC";
         let mut bar_ref = File::create(gitdir.path().join(".git/refs/heads/bar")).unwrap();
-        writeln!(bar_ref, "{}",  &direct_ref).unwrap();
+        writeln!(bar_ref, "{}", &direct_ref).unwrap();
 
         let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
         let resolved_ref = git_resolve_ref(&foo_path, &repo).unwrap();
 
         assert_eq!(direct_ref, resolved_ref);
+    }
+
+    #[test]
+    fn can_create_and_read_lightweight_tags() {
+        let gitdir = test_gitdir().unwrap();
+        let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
+
+        let tag_sha = "0e6cfc8b4209c9ecca33dbd30c41d1d4289736e1".to_owned();
+        git_create_lightweight_tag(&"foo".to_owned(),
+                                   &tag_sha,
+                                   &repo).unwrap();
+
+        let tag = git_list_all_tags(&repo).unwrap();
+        let expected = format!("{tag_sha} refs/tags/foo\n");
+        assert_eq!(&expected, tag.first().unwrap());
     }
 }

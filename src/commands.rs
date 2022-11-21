@@ -85,7 +85,7 @@ fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, er
 }
 
 fn show_ref(repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let refs = utils::git_show_refs(None, &repo)?.concat();
+    let refs = utils::git_gather_refs(None, &repo)?.concat();
     return Ok(Some(refs));
 }
 
@@ -95,11 +95,16 @@ fn tag(
     add_object: &bool,
     repo: obj::Repo,
 ) -> Result<Option<String>, err::Error> {
-    println!("inside tag");
-    println!("name: {:?}", name);
-    println!("object: {:?}", object);
-    println!("add_object: {:?}", add_object);
-    return Ok(Some("foo".to_owned()));
+    if let Some(n) = name {
+        if *add_object {
+            return Err(err::Error::GitCreateTagObjectNotImplemented);
+        } else {
+            utils::git_create_lightweight_tag(n, object, &repo)?;
+            return Ok(None);
+        }
+    } else {
+        return Ok(Some(utils::git_list_all_tags(&repo)?.concat()));
+    }
 }
 
 pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
