@@ -253,12 +253,12 @@ pub fn git_show_refs(path: Option<&Path>, repo: &obj::Repo) -> Result<Vec<String
             all_refs.append(&mut nested_refs);
         } else {
             // git_resolve_ref expects paths relative to .git/
-            let clean_rf_path = rfs_path.strip_prefix("./.git/")?.to_owned();
+            let clean_rf_path = rfs_path.strip_prefix(&repo.gitdir)?.to_owned();
             let resolved_ref = git_resolve_ref(&clean_rf_path, repo)?;
             if let Some(clean_path) = clean_rf_path.to_str() {
                 all_refs.push(format!("{resolved_ref} {clean_path}\n"));
             } else {
-                return Err(err::Error::PathToUtf8Conversion)
+                return Err(err::Error::PathToUtf8Conversion);
             };
         }
     }
