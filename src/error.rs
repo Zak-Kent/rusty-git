@@ -1,4 +1,4 @@
-use std::{num::ParseIntError, path::StripPrefixError};
+use std::{num::ParseIntError, path::StripPrefixError, fmt::Debug};
 
 #[derive(thiserror::Error, Debug, PartialEq)]
 pub enum Error {
@@ -59,8 +59,8 @@ impl std::convert::From<std::io::Error> for Error {
     }
 }
 
-impl std::convert::From<nom::Err<nom::error::Error<&[u8]>>> for Error {
-    fn from(err: nom::Err<nom::error::Error<&[u8]>>) -> Self {
-        Error::NomError(err.to_string())
+impl<T: Debug> std::convert::From<nom::Err<nom::error::Error<T>>> for Error {
+    fn from(err: nom::Err<nom::error::Error<T>>) -> Self {
+        Error::NomError(format!("{:?}", err))
     }
 }
