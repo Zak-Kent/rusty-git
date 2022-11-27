@@ -1,4 +1,5 @@
 use nom::{
+    bits::complete::take as bit_take,
     branch::alt,
     bytes::complete::{is_not, tag, take, take_till1, take_while1},
     character::{
@@ -168,6 +169,24 @@ pub fn parse_git_tree(input: &[u8]) -> Result<Tree, err::Error> {
     return Ok(Tree { contents });
 }
 
+type BitInput<'a> = (&'a [u8], usize);
+
+fn take_n_bits(input: BitInput, count: u8) -> IResult<BitInput, u8> {
+    bit_take(count)(input)
+}
+
+fn parse_num_to_mode(input: u32) -> Result<String, err::Error> {
+    let byte_input = (input as u16).to_be_bytes();
+    // this tuple is how Nom bit parsers keep track of where they are in the bytes
+    let bit_input: BitInput = (&byte_input, 0);
+    let (bit_input, file_type) = take_n_bits(bit_input, 3)?;
+    let (bit_input, _) = take_n_bits(bit_input, 4)?;
+    let (bit_input, user) = take_n_bits(bit_input, 3)?;
+    let (bit_input, group) = take_n_bits(bit_input, 3)?;
+    let (_, other) = take_n_bits(bit_input, 3)?;
+    return Ok(format!("{:03b}{}{}{}", file_type, user, group, other));
+}
+
 #[cfg(test)]
 mod object_parsing_tests {
     use super::*;
@@ -325,5 +344,13 @@ mod object_parsing_tests {
         };
         let tree = parse_git_tree(&tree_file).unwrap();
         assert_eq!(expected_val, tree);
+    }
+
+    #[test]
+    fn can_parse_mode_num() {
+        let mode_num = 33188 as u32;
+        let expected = "100644";
+        let result = parse_num_to_mode(mode_num).unwrap();
+        assert_eq!(expected, result);
     }
 }
