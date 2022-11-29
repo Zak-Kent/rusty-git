@@ -208,47 +208,71 @@ pub struct IndexEntry {
     pub name: String,
 }
 
-pub fn parse_git_index_entry(input: &[u8]) -> Result<IndexEntry, err::Error> {
+pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
     let (input, c_time) = u32(Big)(input)?;
     let (input, c_time_nano) = u32(Big)(input)?;
+    let c_time_dt;
+    if let Some(ct) = Utc.timestamp_opt(c_time.into(), c_time_nano).single() {
+        c_time_dt = ct;
+    } else {
+        return Err(generic_nom_err(input));
+    };
+
     let (input, m_time) = u32(Big)(input)?;
     let (input, m_time_nano) = u32(Big)(input)?;
+    let m_time_dt;
+    if let Some(mt) = Utc.timestamp_opt(m_time.into(), m_time_nano).single() {
+        m_time_dt = mt;
+    } else {
+        return Err(generic_nom_err(input));
+    };
+
     let (input, dev) = u32(Big)(input)?;
     let (input, inode) = u32(Big)(input)?;
+
     let (input, mode) = u32(Big)(input)?;
+    let parsed_mode;
+    if let Ok(pm) = parse_num_to_mode(mode) {
+        parsed_mode = pm;
+    } else {
+        return Err(generic_nom_err(input));
+    }
+
     let (input, uid) = u32(Big)(input)?;
     let (input, gid) = u32(Big)(input)?;
     let (input, size) = u32(Big)(input)?;
     let (input, bsha) = take(20usize)(input)?;
     let (input, name_size) = u16(Big)(input)?;
-    let (_, name) = take(name_size)(input)?;
 
-    let c_time_dt;
-    if let Some(ct) = Utc.timestamp_opt(c_time.into(), c_time_nano).single() {
-        c_time_dt = ct;
+    let (input, name) = take(name_size)(input)?;
+    let parsed_name;
+    if let Ok(pn) = from_utf8(name) {
+        parsed_name = pn;
     } else {
-        return Err(err::Error::TimestampConversionError);
-    };
+        return Err(generic_nom_err(input));
+    }
 
-    let m_time_dt;
-    if let Some(mt) = Utc.timestamp_opt(m_time.into(), m_time_nano).single() {
-        m_time_dt = mt;
-    } else {
-        return Err(err::Error::TimestampConversionError);
-    };
+    // 62 bytes per entry not counting length of name
+    let entry_length = 62 + name_size;
+    let padding_bytes = 8 - entry_length % 8;
+    // the parser need to eat the padding bytes after each entry
+    let (input, _null_bytes) = take(padding_bytes)(input)?;
 
-    return Ok(IndexEntry {
-        c_time: c_time_dt,
-        m_time: m_time_dt,
-        dev,
-        inode,
-        mode: parse_num_to_mode(mode)?,
-        uid,
-        gid,
-        size,
-        sha: get_sha_from_binary(bsha),
-        name: from_utf8(name)?.to_owned(),
-    });
+    return Ok((
+        input,
+        IndexEntry {
+            c_time: c_time_dt,
+            m_time: m_time_dt,
+            dev,
+            inode,
+            mode: parsed_mode,
+            uid,
+            gid,
+            size,
+            sha: get_sha_from_binary(bsha),
+            name: parsed_name.to_owned(),
+        },
+    ));
 }
 
 #[cfg(test)]
@@ -424,36 +448,7 @@ mod object_parsing_tests {
             99, 134, 102, 238, 3, 187, 189, 180, 99, 134, 102, 238, 3, 187, 189, 180, 1, 0, 0, 4,
             0, 94, 104, 237, 0, 0, 129, 164, 0, 0, 1, 245, 0, 0, 0, 20, 0, 0, 1, 179, 119, 254, 94,
             4, 37, 226, 247, 186, 101, 44, 84, 22, 59, 242, 131, 50, 148, 86, 222, 57, 0, 10, 67,
-            97, 114, 103, 111, 46, 116, 111, 109, 108, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 129, 164, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 73, 55, 228, 89, 60, 218, 13, 59, 253, 59, 115, 25, 117, 147, 194, 253,
-            192, 76, 197, 30, 0, 10, 115, 114, 99, 47, 99, 108, 105, 46, 114, 115, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            129, 164, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 248, 47, 249, 197, 177, 18, 227, 7, 129,
-            105, 212, 73, 244, 161, 101, 162, 57, 109, 211, 250, 0, 15, 115, 114, 99, 47, 99, 111,
-            109, 109, 97, 110, 100, 115, 46, 114, 115, 0, 0, 0, 99, 134, 88, 171, 45, 255, 143,
-            139, 99, 134, 88, 171, 45, 255, 143, 139, 1, 0, 0, 4, 0, 94, 41, 190, 0, 0, 129, 164,
-            0, 0, 1, 245, 0, 0, 0, 20, 0, 0, 9, 150, 105, 193, 81, 99, 187, 193, 239, 109, 91, 116,
-            225, 162, 177, 28, 95, 165, 172, 84, 59, 149, 0, 12, 115, 114, 99, 47, 101, 114, 114,
-            111, 114, 46, 114, 115, 0, 0, 0, 0, 0, 0, 99, 134, 93, 12, 50, 145, 31, 45, 99, 134,
-            93, 12, 50, 145, 31, 45, 1, 0, 0, 4, 0, 94, 70, 143, 0, 0, 129, 164, 0, 0, 1, 245, 0,
-            0, 0, 20, 0, 0, 1, 246, 194, 229, 29, 243, 178, 116, 110, 41, 73, 182, 109, 157, 69, 4,
-            28, 28, 187, 29, 19, 50, 0, 11, 115, 114, 99, 47, 109, 97, 105, 110, 46, 114, 115, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 129, 164, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 245, 192, 54, 219, 118, 28, 33,
-            194, 45, 206, 131, 150, 64, 0, 115, 16, 93, 222, 161, 196, 0, 21, 115, 114, 99, 47,
-            111, 98, 106, 101, 99, 116, 95, 112, 97, 114, 115, 101, 114, 115, 46, 114, 115, 0, 0,
-            0, 0, 0, 99, 118, 129, 163, 44, 243, 27, 162, 99, 118, 129, 163, 44, 243, 27, 162, 1,
-            0, 0, 4, 0, 90, 191, 65, 0, 0, 129, 164, 0, 0, 1, 245, 0, 0, 0, 20, 0, 0, 27, 81, 242,
-            62, 90, 226, 216, 80, 134, 183, 122, 28, 135, 5, 147, 88, 112, 113, 51, 144, 147, 41,
-            0, 14, 115, 114, 99, 47, 111, 98, 106, 101, 99, 116, 115, 46, 114, 115, 0, 0, 0, 0, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 129, 164, 0,
-            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 94, 245, 149, 200, 225, 77, 104, 173, 220, 22, 241, 0,
-            166, 218, 97, 147, 50, 113, 102, 91, 0, 12, 115, 114, 99, 47, 117, 116, 105, 108, 115,
-            46, 114, 115, 0, 0, 0, 0, 0, 0, 84, 82, 69, 69, 0, 0, 0, 34, 0, 45, 49, 32, 49, 10,
-            115, 114, 99, 0, 55, 32, 48, 10, 16, 188, 155, 114, 91, 98, 46, 24, 80, 99, 164, 211,
-            225, 163, 70, 91, 18, 229, 144, 77, 101, 229, 18, 109, 146, 127, 163, 150, 77, 34, 12,
-            137, 162, 59, 106, 30, 55, 179, 115, 238,
+            97, 114, 103, 111, 46, 116, 111, 109, 108, 0, 0, 0, 0, 0, 0, 0, 0
         ];
         let c_time = 1669752558;
         let c_time_nano = 62635444;
@@ -478,7 +473,8 @@ mod object_parsing_tests {
             sha: "77fe5e0425e2f7ba652c54163bf283329456de39".to_owned(),
             name: "Cargo.toml".to_owned(),
         };
-        let result = parse_git_index_entry(&entry).unwrap();
+        let (input, result) = parse_git_index_entry(&entry).unwrap();
         assert_eq!(expected, result);
+        assert_eq!(0, input.len());
     }
 }
