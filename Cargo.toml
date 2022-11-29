@@ -16,3 +16,4 @@ nom = "7.1.1"
 clap = { version = "4.0.19", features = ["derive"] }
 sha1_smol = { version = "1.0.0", features = ["std"] }
 hex = "0.4.3"
+chrono = "0.4.23"

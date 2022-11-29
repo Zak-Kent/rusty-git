@@ -35,6 +35,8 @@ pub enum Error {
     DirNameToUtf8Conversion,
     #[error("Path wasn't valid utf8")]
     PathToUtf8Conversion,
+    #[error("Timestamp conversion error")]
+    TimestampConversionError,
 
     // wrapped errors from external libs or funcs
     #[error("IO error: {0}")]
