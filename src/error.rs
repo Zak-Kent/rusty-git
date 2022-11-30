@@ -23,6 +23,8 @@ pub enum Error {
     GitTreeInvalidObject,
     #[error("Git tag -a isn't implemented yet")]
     GitCreateTagObjectNotImplemented,
+    #[error("Unrecognized git index version: {0}, this tool only supports version 2")]
+    GitUnrecognizedIndexVersion(u32),
 
     // program errors not related to git
     #[error("Path doesn't exist: {0}")]
