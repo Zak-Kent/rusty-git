@@ -107,6 +107,17 @@ fn tag(
     }
 }
 
+pub fn ls_files(repo: obj::Repo) -> Result<Option<String>, err::Error> {
+    let index_contents = utils::git_read_index(&repo)?;
+    let index = objp::parse_git_index(&index_contents)?;
+    let file_names: Vec<String> = index
+        .entries
+        .into_iter()
+        .map(|e| format!("{}\n", e.name))
+        .collect();
+    return Ok(Some(file_names.concat()));
+}
+
 pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
     let repo = obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?;
     let command = &cmd.command;
@@ -124,6 +135,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
             object,
             add_object,
         } => tag(name, object, add_object, repo),
+        cli::GitCmd::LsFiles => ls_files(repo),
     }
 }
 

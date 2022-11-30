@@ -8,7 +8,7 @@ use nom::{
         is_newline,
     },
     error::{Error, ErrorKind},
-    multi::{many0, many1},
+    multi::many1,
     number::{
         complete::{u16, u32},
         Endianness::Big,
@@ -287,7 +287,8 @@ pub fn parse_git_index(input: &[u8]) -> Result<Index, err::Error> {
         return Err(err::Error::GitUnrecognizedIndexVersion(version));
     }
     let (input, _num_entries) = u32(Big)(input)?;
-    let (_, entries) = many0(parse_git_index_entry)(input)?;
+    // expects at least 1 file in the index
+    let (_, entries) = many1(parse_git_index_entry)(input)?;
     return Ok(Index { entries });
 }
 

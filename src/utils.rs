@@ -288,6 +288,11 @@ pub fn git_create_lightweight_tag(
     return Ok(());
 }
 
+pub fn git_read_index(repo: &obj::Repo) -> Result<Vec<u8>, err::Error> {
+    let index_path = repo.gitdir.join("index");
+    return Ok(read(index_path)?)
+}
+
 // ----------- fs utils ---------------
 pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     path.push(ext);

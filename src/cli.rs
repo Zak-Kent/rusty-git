@@ -39,6 +39,8 @@ pub enum GitCmd {
         #[arg(short, value_name = "Add tag object", default_value_t = false)]
         add_object: bool,
     },
+    /// List the names of the files being tracked in the git index
+    LsFiles,
 }
 
 #[derive(Parser, Debug)]
