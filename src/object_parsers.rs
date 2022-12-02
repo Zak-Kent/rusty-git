@@ -147,11 +147,25 @@ pub fn parse_git_tree_leaf(input: &[u8]) -> IResult<&[u8], ParsedLeaf> {
     return Ok((input, ParsedLeaf::from((mode, path, sha))));
 }
 
+pub trait NameSha {
+    fn get_name_and_sha(&self, name_prefix: Option<&str>) -> (String, String);
+}
+
 #[derive(Debug, PartialEq)]
 pub struct TreeLeaf {
     pub mode: String,
     pub path: String,
     pub sha: String,
+}
+
+impl NameSha for TreeLeaf {
+    fn get_name_and_sha(&self, name_prefix: Option<&str>) -> (String, String) {
+        if let Some(prefix) = name_prefix {
+            return (format!("{prefix}/{}", self.path), self.sha.clone())
+        } else  {
+            return (self.path.clone(), self.sha.clone());
+        }
+    }
 }
 
 #[derive(Debug, PartialEq)]
@@ -208,6 +222,15 @@ pub struct IndexEntry {
     pub name: String,
 }
 
+impl NameSha for IndexEntry {
+    fn get_name_and_sha(&self, name_prefix: Option<&str>) -> (String, String) {
+        if let Some(prefix) = name_prefix {
+            return (format!("{prefix}/{}", self.name), self.sha.clone())
+        } else  {
+            return (self.name.clone(), self.sha.clone());
+        }
+    }
+}
 pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
     let (input, c_time) = u32(Big)(input)?;
     let (input, c_time_nano) = u32(Big)(input)?;
