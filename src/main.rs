@@ -11,6 +11,7 @@ mod utils;
 use crate::commands as cmd;
 use crate::error as err;
 
+
 fn main() {
     let cli = cli::Cli::parse();
     let output = cmd::run_cmd(&cli, false).unwrap_or_else(|err: err::Error| {

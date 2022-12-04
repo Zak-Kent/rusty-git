@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::fs::{create_dir, create_dir_all, metadata, read, read_dir, read_to_string, File};
 use std::io::{Error, Write};
 use std::path::{Path, PathBuf};
@@ -5,7 +6,7 @@ use std::str::from_utf8;
 use tempfile::{tempdir, TempDir};
 
 use crate::error as err;
-use crate::object_parsers as objp;
+use crate::object_parsers::{self as objp, NameSha};
 use crate::objects as obj;
 
 // ----------- test utils ---------------
@@ -290,7 +291,48 @@ pub fn git_create_lightweight_tag(
 
 pub fn git_read_index(repo: &obj::Repo) -> Result<Vec<u8>, err::Error> {
     let index_path = repo.gitdir.join("index");
-    return Ok(read(index_path)?)
+    return Ok(read(index_path)?);
+}
+
+fn git_index_file_sha_pairs<T: objp::NameSha>(
+    input: Vec<T>,
+    name_prefix: Option<String>,
+) -> HashSet<(String, String)> {
+    return input
+        .iter()
+        .map(|elm| elm.get_name_and_sha(name_prefix.clone()))
+        .collect();
+}
+
+fn git_tree_file_sha_pairs(
+    tree: objp::Tree,
+    name_prefix: Option<String>,
+    repo: &obj::Repo,
+) -> Result<HashSet<(String, String)>, err::Error> {
+    let mut file_sha_pairs: HashSet<(String, String)> = HashSet::new();
+    // extra complexity needed to deal with nested git Tree objects
+    for elm in tree.contents.iter() {
+        if PathBuf::from(&elm.path).is_dir() {
+            let obj::GitObject { obj, contents, .. } = obj::read_object(&elm.sha, &repo)?;
+            if obj != obj::GitObjTyp::Tree {
+                return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
+            } else {
+                let nested_name_prefix: Option<String>;
+                if let Some(ref nnp) = name_prefix {
+                    nested_name_prefix = Some(format!("{}/{}", nnp, elm.path));
+                } else {
+                    nested_name_prefix = Some(elm.path.clone());
+                }
+                let tree = objp::parse_git_tree(&contents)?;
+                let inner_tree_file_sha_pairs =
+                    git_tree_file_sha_pairs(tree, nested_name_prefix, repo)?;
+                file_sha_pairs.extend(inner_tree_file_sha_pairs);
+            }
+        } else {
+            file_sha_pairs.insert(elm.get_name_and_sha(name_prefix.clone()));
+        }
+    }
+    return Ok(file_sha_pairs);
 }
 
 // ----------- fs utils ---------------
@@ -437,9 +479,7 @@ mod utils_tests {
         let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
 
         let tag_sha = "0e6cfc8b4209c9ecca33dbd30c41d1d4289736e1".to_owned();
-        git_create_lightweight_tag(&"foo".to_owned(),
-                                   &tag_sha,
-                                   &repo).unwrap();
+        git_create_lightweight_tag(&"foo".to_owned(), &tag_sha, &repo).unwrap();
 
         let tag = git_list_all_tags(&repo).unwrap();
         let expected = format!("{tag_sha} refs/tags/foo\n");

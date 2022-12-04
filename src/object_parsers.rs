@@ -148,7 +148,7 @@ pub fn parse_git_tree_leaf(input: &[u8]) -> IResult<&[u8], ParsedLeaf> {
 }
 
 pub trait NameSha {
-    fn get_name_and_sha(&self, name_prefix: Option<&str>) -> (String, String);
+    fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String);
 }
 
 #[derive(Debug, PartialEq)]
@@ -159,7 +159,7 @@ pub struct TreeLeaf {
 }
 
 impl NameSha for TreeLeaf {
-    fn get_name_and_sha(&self, name_prefix: Option<&str>) -> (String, String) {
+    fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String) {
         if let Some(prefix) = name_prefix {
             return (format!("{prefix}/{}", self.path), self.sha.clone())
         } else  {
@@ -223,7 +223,7 @@ pub struct IndexEntry {
 }
 
 impl NameSha for IndexEntry {
-    fn get_name_and_sha(&self, name_prefix: Option<&str>) -> (String, String) {
+    fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String) {
         if let Some(prefix) = name_prefix {
             return (format!("{prefix}/{}", self.name), self.sha.clone())
         } else  {
