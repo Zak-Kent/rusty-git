@@ -335,6 +335,25 @@ fn git_tree_file_sha_pairs(
     return Ok(file_sha_pairs);
 }
 
+fn git_staged_but_not_commited(repo: &obj::Repo) -> Result<String, err::Error> {
+    // get a set of (name, sha) pairs for each file in the last commit object
+    let head_sha = git_sha_from_head(repo)?;
+    let obj::GitObject { contents, sha, .. } = obj::read_object(&head_sha, &repo)?;
+    let commit_tree = git_get_tree_from_commit(&sha, &contents, &repo)?;
+    let commit_tree_files_n_shas = git_tree_file_sha_pairs(commit_tree, None, repo)?;
+
+    // get set of (name, sha) pairs for each file in the index
+    let idx = git_read_index(repo)?;
+    let idxp = objp::parse_git_index(&idx)?;
+    let index_files_n_shas: HashSet<(String, String)> =
+        git_index_file_sha_pairs(idxp.entries, None);
+
+    return Ok(format!(
+        "{:#?}",
+        index_files_n_shas.difference(&commit_tree_files_n_shas)
+    ));
+}
+
 // ----------- fs utils ---------------
 pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     path.push(ext);
