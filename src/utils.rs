@@ -2,6 +2,7 @@ use chrono::{DateTime, TimeZone, Utc};
 use std::collections::HashSet;
 use std::fs::{create_dir, create_dir_all, metadata, read, read_dir, read_to_string, File};
 use std::io::{Error, Write};
+use std::iter::FromIterator;
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 use tempfile::{tempdir, TempDir};
@@ -395,6 +396,24 @@ fn gather_mtime_from_worktree(
         }
     }
     return Ok(file_mtime_pairs);
+}
+
+fn git_local_changes_not_staged_for_commit(repo: &obj::Repo) -> Result<String, err::Error> {
+    let idx = git_read_index(repo)?;
+    let idxp = objp::parse_git_index(&idx)?;
+
+    let names_mtimes = idxp
+        .entries
+        .iter()
+        .map(|objp::IndexEntry { name, m_time, .. }| (name.to_owned(), m_time.to_owned()));
+
+    let idx_name_mtime_pairs: HashSet<(String, DateTime<Utc>)> = HashSet::from_iter(names_mtimes);
+    let worktree_name_mtime_pairs = gather_mtime_from_worktree(None, repo)?;
+
+    return Ok(format!(
+        "{:#?}",
+        idx_name_mtime_pairs.difference(&worktree_name_mtime_pairs)
+    ));
 }
 
 // ----------- fs utils ---------------
