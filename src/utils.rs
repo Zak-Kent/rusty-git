@@ -1,3 +1,4 @@
+use chrono::{DateTime, TimeZone, Utc};
 use std::collections::HashSet;
 use std::fs::{create_dir, create_dir_all, metadata, read, read_dir, read_to_string, File};
 use std::io::{Error, Write};
@@ -352,6 +353,48 @@ fn git_staged_but_not_commited(repo: &obj::Repo) -> Result<String, err::Error> {
         "{:#?}",
         index_files_n_shas.difference(&commit_tree_files_n_shas)
     ));
+}
+
+fn gather_mtime_from_worktree(
+    path: Option<&Path>,
+    repo: &obj::Repo,
+) -> Result<HashSet<(String, DateTime<Utc>)>, err::Error> {
+    let work_path = if path == None {
+        repo.worktree.clone()
+    } else {
+        path.unwrap().to_path_buf()
+    };
+
+    let mut file_mtime_pairs: HashSet<(String, DateTime<Utc>)> = HashSet::new();
+    let worktree_dir = read_dir(work_path)?;
+
+    for node in worktree_dir {
+        let node_val = node?;
+        let node_path = &node_val.path();
+        let node_name = &node_val.file_name();
+
+        // TODO look into .gitignore to get the paths you want to ignore
+        if node_name == ".git" || node_name == "target" {
+            continue;
+        }
+
+        let node_md = metadata(&node_val.path())?;
+        if node_md.is_dir() {
+            let inner_vals = gather_mtime_from_worktree(Some(node_path), repo)?;
+            file_mtime_pairs.extend(inner_vals);
+        } else {
+            let node_mtime = node_md.modified()?;
+            let node_dt: DateTime<Utc> = node_mtime.clone().into();
+            let clean_node_path = node_path.strip_prefix(&repo.worktree)?;
+            if let Some(node_path) = clean_node_path.to_str() {
+                let file_output = (node_path.to_owned(), node_dt);
+                file_mtime_pairs.insert(file_output);
+            } else {
+                return Err(err::Error::PathToUtf8Conversion);
+            };
+        }
+    }
+    return Ok(file_mtime_pairs);
 }
 
 // ----------- fs utils ---------------
