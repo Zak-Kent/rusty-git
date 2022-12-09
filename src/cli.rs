@@ -41,6 +41,8 @@ pub enum GitCmd {
     },
     /// List the names of the files being tracked in the git index
     LsFiles,
+    /// Show the working tree status
+    Status,
 }
 
 #[derive(Parser, Debug)]

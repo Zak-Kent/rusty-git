@@ -351,8 +351,12 @@ fn git_staged_but_not_commited(repo: &obj::Repo) -> Result<String, err::Error> {
         git_index_file_sha_pairs(idxp.entries, None);
 
     return Ok(format!(
-        "{:#?}",
-        index_files_n_shas.difference(&commit_tree_files_n_shas)
+        "{}",
+        index_files_n_shas
+            .difference(&commit_tree_files_n_shas)
+            .into_iter()
+            .map(|(name, _)| format!("modified: {name}\n"))
+            .collect::<String>()
     ));
 }
 
@@ -411,9 +415,24 @@ fn git_local_changes_not_staged_for_commit(repo: &obj::Repo) -> Result<String, e
     let worktree_name_mtime_pairs = gather_mtime_from_worktree(None, repo)?;
 
     return Ok(format!(
-        "{:#?}",
-        idx_name_mtime_pairs.difference(&worktree_name_mtime_pairs)
+        "{}",
+        idx_name_mtime_pairs
+            .difference(&worktree_name_mtime_pairs)
+            .into_iter()
+            .map(|(name, _)| format!("modified: {name}\n"))
+            .collect::<String>()
     ));
+}
+
+pub fn git_status(repo: &obj::Repo) -> Result<String, err::Error> {
+    let staged = git_staged_but_not_commited(repo)?;
+    let not_staged = git_local_changes_not_staged_for_commit(repo)?;
+    // TODO: need to add check for untracked files and update status
+    let status = format!(
+        "Changes to be committed:\n\n{}\nChanges not staged for commit:\n\n{}",
+        staged, not_staged
+    );
+    return Ok(status);
 }
 
 // ----------- fs utils ---------------

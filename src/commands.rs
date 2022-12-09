@@ -118,6 +118,11 @@ pub fn ls_files(repo: obj::Repo) -> Result<Option<String>, err::Error> {
     return Ok(Some(file_names.concat()));
 }
 
+pub fn status(repo: obj::Repo) -> Result<Option<String>, err::Error> {
+    let status = utils::git_status(&repo)?;
+    return Ok(Some(status));
+}
+
 pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
     let repo = obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?;
     let command = &cmd.command;
@@ -136,6 +141,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
             add_object,
         } => tag(name, object, add_object, repo),
         cli::GitCmd::LsFiles => ls_files(repo),
+        cli::GitCmd::Status => status(repo),
     }
 }
 
