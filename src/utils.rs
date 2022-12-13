@@ -360,7 +360,26 @@ fn git_staged_but_not_commited(repo: &obj::Repo) -> Result<String, err::Error> {
     ));
 }
 
-fn gather_mtime_from_worktree(
+fn git_ignored_files(repo: &obj::Repo) -> Result<HashSet<PathBuf>, err::Error> {
+    let gitignore_path = repo.worktree.join(".gitignore");
+    let gitignore = read(gitignore_path)?;
+
+    let mut output: HashSet<PathBuf> = HashSet::new();
+    for path in from_utf8(&gitignore)?.split('\n') {
+        if path == "" {
+            continue;
+        } else {
+            if path.starts_with("/") {
+                output.insert(PathBuf::from(path[1..].to_owned()));
+            } else {
+                output.insert(PathBuf::from(path.to_owned()));
+            }
+        }
+    }
+    return Ok(output);
+}
+
+fn git_gather_mtime_from_worktree(
     path: Option<&Path>,
     repo: &obj::Repo,
 ) -> Result<HashSet<(String, DateTime<Utc>)>, err::Error> {
@@ -372,20 +391,20 @@ fn gather_mtime_from_worktree(
 
     let mut file_mtime_pairs: HashSet<(String, DateTime<Utc>)> = HashSet::new();
     let worktree_dir = read_dir(work_path)?;
+    let ignored_files = git_ignored_files(repo)?;
 
     for node in worktree_dir {
         let node_val = node?;
         let node_path = &node_val.path();
         let node_name = &node_val.file_name();
 
-        // TODO look into .gitignore to get the paths you want to ignore
-        if node_name == ".git" || node_name == "target" {
+        if node_name == ".git" || ignored_files.contains(node_path.strip_prefix(&repo.worktree)?) {
             continue;
         }
 
         let node_md = metadata(&node_val.path())?;
         if node_md.is_dir() {
-            let inner_vals = gather_mtime_from_worktree(Some(node_path), repo)?;
+            let inner_vals = git_gather_mtime_from_worktree(Some(node_path), repo)?;
             file_mtime_pairs.extend(inner_vals);
         } else {
             let node_mtime = node_md.modified()?;
@@ -412,7 +431,7 @@ fn git_local_changes_not_staged_for_commit(repo: &obj::Repo) -> Result<String, e
         .map(|objp::IndexEntry { name, m_time, .. }| (name.to_owned(), m_time.to_owned()));
 
     let idx_name_mtime_pairs: HashSet<(String, DateTime<Utc>)> = HashSet::from_iter(names_mtimes);
-    let worktree_name_mtime_pairs = gather_mtime_from_worktree(None, repo)?;
+    let worktree_name_mtime_pairs = git_gather_mtime_from_worktree(None, repo)?;
 
     return Ok(format!(
         "{}",
