@@ -337,7 +337,10 @@ fn git_tree_file_sha_pairs(
     return Ok(file_sha_pairs);
 }
 
-fn git_staged_but_not_commited(repo: &obj::Repo, index: &objp::Index) -> Result<String, err::Error> {
+fn git_staged_but_not_commited(
+    repo: &obj::Repo,
+    index: &objp::Index,
+) -> Result<String, err::Error> {
     // get a set of (name, sha) pairs for each file in the last commit object
     let head_sha = git_sha_from_head(repo)?;
     let obj::GitObject { contents, sha, .. } = obj::read_object(&head_sha, &repo)?;
@@ -419,7 +422,15 @@ fn git_gather_mtime_from_worktree(
     return Ok(file_mtime_pairs);
 }
 
-fn git_local_changes_not_staged_for_commit(repo: &obj::Repo, index: &objp::Index) -> Result<String, err::Error> {
+struct LocalChanges {
+    not_staged: String,
+    not_tracked: String,
+}
+
+fn git_local_changes_not_staged_for_commit_or_untracked(
+    repo: &obj::Repo,
+    index: &objp::Index,
+) -> Result<LocalChanges, err::Error> {
     let names_mtimes = index
         .entries
         .iter()
@@ -428,14 +439,28 @@ fn git_local_changes_not_staged_for_commit(repo: &obj::Repo, index: &objp::Index
     let idx_name_mtime_pairs: HashSet<(String, DateTime<Utc>)> = HashSet::from_iter(names_mtimes);
     let worktree_name_mtime_pairs = git_gather_mtime_from_worktree(None, repo)?;
 
-    return Ok(format!(
+    let not_staged = format!(
         "{}",
         idx_name_mtime_pairs
             .difference(&worktree_name_mtime_pairs)
             .into_iter()
             .map(|(name, _)| format!("modified: {name}\n"))
             .collect::<String>()
-    ));
+    );
+
+    let not_tracked = format!(
+        "{}",
+        worktree_name_mtime_pairs
+            .difference(&idx_name_mtime_pairs)
+            .into_iter()
+            .map(|(name, _)| format!("{name}\n"))
+            .collect::<String>()
+    );
+
+    return Ok(LocalChanges {
+        not_staged,
+        not_tracked,
+    });
 }
 
 pub fn git_status(repo: &obj::Repo) -> Result<String, err::Error> {
@@ -443,11 +468,15 @@ pub fn git_status(repo: &obj::Repo) -> Result<String, err::Error> {
     let index = objp::parse_git_index(&idx)?;
 
     let staged = git_staged_but_not_commited(repo, &index)?;
-    let not_staged = git_local_changes_not_staged_for_commit(repo, &index)?;
-    // TODO: need to add check for untracked files and update status
+    let LocalChanges {
+        not_staged,
+        not_tracked,
+    } = git_local_changes_not_staged_for_commit_or_untracked(repo, &index)?;
     let status = format!(
-        "Changes to be committed:\n\n{}\nChanges not staged for commit:\n\n{}",
-        staged, not_staged
+        "Changes to be committed:\n\n{}\n\
+         Changes not staged for commit:\n\n{}\n\
+         Untracked files:\n\n{}",
+        staged, not_staged, not_tracked
     );
     return Ok(status);
 }
