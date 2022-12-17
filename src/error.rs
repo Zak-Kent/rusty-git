@@ -39,6 +39,11 @@ pub enum Error {
     PathToUtf8Conversion,
     #[error("Timestamp conversion error")]
     TimestampConversionError,
+    #[error(".rusty-git-allowed file not found!
+             To prevent destructive operations on a real git repos this tool requires a
+             .rusty-git-allowed file in the git worktree. Please create this file and
+             run the command again")]
+    RustyGitAllowedFileMissing,
 
     // wrapped errors from external libs or funcs
     #[error("IO error: {0}")]

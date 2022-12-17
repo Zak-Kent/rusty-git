@@ -481,6 +481,26 @@ pub fn git_status(repo: &obj::Repo) -> Result<String, err::Error> {
     return Ok(status);
 }
 
+pub fn git_check_for_rusty_git_allowed(repo: &obj::Repo) -> Result<bool, err::Error> {
+    let work_path = repo.worktree.clone();
+    let worktree_dir = read_dir(work_path)?;
+    let mut rusty_git_allowed = false;
+
+    for node in worktree_dir {
+        let node_val =  node?;
+        let node_name = node_val.file_name();
+        if node_name == ".rusty-git-allowed" {
+            rusty_git_allowed = true;
+        }
+    }
+
+    if rusty_git_allowed {
+        return Ok(rusty_git_allowed);
+    } else {
+        return Err(err::Error::RustyGitAllowedFileMissing)
+    }
+}
+
 // ----------- fs utils ---------------
 pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     path.push(ext);
