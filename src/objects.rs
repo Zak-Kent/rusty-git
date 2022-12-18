@@ -120,6 +120,8 @@ pub fn write_object(src: SourceFile, repo: Option<&Repo>) -> Result<String, err:
     // The existance of a repo indicates that the contents of the file should be
     // compressed and written to the appropriate dir/file in .git/objects
     if let Some(repo) = repo {
+        utils::git_check_for_rusty_git_allowed(repo)?;
+
         let git_obj_dir = repo.worktree.join(format!(".git/objects/{}", &hash[..2]));
         let git_obj_path = git_obj_dir.join(format!("{}", &hash[2..]));
 

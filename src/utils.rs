@@ -76,6 +76,8 @@ pub fn create_git_repo(path: &Path) -> Result<Option<String>, err::Error> {
     if is_git_repo(path) {
         return Err(err::Error::GitRepoAlreadyExists);
     }
+    File::create(path.join(".rusty-git-allowed"))?;
+
     create_dir_all(path.join(".git/objects"))?;
     create_dir_all(path.join(".git/refs/heads"))?;
     create_dir_all(path.join(".git/refs/tags"))?;
