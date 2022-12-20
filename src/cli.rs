@@ -4,7 +4,7 @@ use clap::{Parser, Subcommand};
 pub enum GitCmd {
     /// Create an empty git repo, errors if git repo already exists
     Init,
-    /// Returns the sha256 hash of the file at the given path
+    /// Returns the sha1 hash of the file at the given path
     HashObject {
         path: String,
     },

@@ -172,7 +172,7 @@ mod object_tests {
 
         assert_eq!(
             hash,
-            Some("aa161e140ba95d5f611da742cedbdc98d11128a40d89a3c45b3a74f50f970897".to_owned())
+            Some("323fae03f4606ea9991df8befbb2fca795e648fa".to_owned())
         );
 
         let cat_cmd = cli::Cli {

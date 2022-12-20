@@ -1,7 +1,7 @@
 use deflate::write::ZlibEncoder;
 use deflate::Compression;
 use inflate::inflate_bytes_zlib;
-use sha256;
+use sha1_smol as sha1;
 use std::fs::{self, create_dir, read, File};
 use std::io::Write;
 use std::path::PathBuf;
@@ -115,7 +115,9 @@ pub fn write_object(src: SourceFile, repo: Option<&Repo>) -> Result<String, err:
     ]
     .concat();
 
-    let hash = sha256::digest_bytes(&contents_with_header);
+    let mut hasher = sha1::Sha1::new();
+    hasher.update(&contents_with_header);
+    let hash = hasher.digest().to_string();
 
     // The existance of a repo indicates that the contents of the file should be
     // compressed and written to the appropriate dir/file in .git/objects
@@ -221,10 +223,7 @@ mod object_tests {
         };
         let hash = write_object(src, Some(&repo))?;
 
-        assert_eq!(
-            hash,
-            "aa161e140ba95d5f611da742cedbdc98d11128a40d89a3c45b3a74f50f970897".to_owned()
-        );
+        assert_eq!(hash, "323fae03f4606ea9991df8befbb2fca795e648fa".to_owned());
 
         let git_obj_path =
             worktree
