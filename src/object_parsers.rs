@@ -214,7 +214,7 @@ pub struct IndexEntry {
     pub m_time: DateTime<Utc>,
     pub dev: u32,
     pub inode: u32,
-    pub mode: String,
+    pub mode: u32,
     pub uid: u32,
     pub gid: u32,
     pub size: u32,
@@ -254,13 +254,6 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
     let (input, inode) = u32(Big)(input)?;
 
     let (input, mode) = u32(Big)(input)?;
-    let parsed_mode;
-    if let Ok(pm) = parse_num_to_mode(mode) {
-        parsed_mode = pm;
-    } else {
-        return Err(generic_nom_err(input));
-    }
-
     let (input, uid) = u32(Big)(input)?;
     let (input, gid) = u32(Big)(input)?;
     let (input, size) = u32(Big)(input)?;
@@ -288,7 +281,7 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
             m_time: m_time_dt,
             dev,
             inode,
-            mode: parsed_mode,
+            mode,
             uid,
             gid,
             size,
@@ -506,7 +499,7 @@ mod object_parsing_tests {
                 .unwrap(),
             dev: 16777220,
             inode: 6187245,
-            mode: "100644".to_owned(),
+            mode: 33188,
             uid: 501,
             gid: 20,
             size: 435,
