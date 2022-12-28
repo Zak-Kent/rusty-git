@@ -161,8 +161,8 @@ pub struct TreeLeaf {
 impl NameSha for TreeLeaf {
     fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String) {
         if let Some(prefix) = name_prefix {
-            return (format!("{prefix}/{}", self.path), self.sha.clone())
-        } else  {
+            return (format!("{prefix}/{}", self.path), self.sha.clone());
+        } else {
             return (self.path.clone(), self.sha.clone());
         }
     }
@@ -218,19 +218,23 @@ pub struct IndexEntry {
     pub uid: u32,
     pub gid: u32,
     pub size: u32,
-    pub sha: String,
+    pub sha: Vec<u8>,
     pub name: String,
 }
 
 impl NameSha for IndexEntry {
     fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String) {
         if let Some(prefix) = name_prefix {
-            return (format!("{prefix}/{}", self.name), self.sha.clone())
-        } else  {
-            return (self.name.clone(), self.sha.clone());
+            return (
+                format!("{prefix}/{}", self.name),
+                get_sha_from_binary(&self.sha),
+            );
+        } else {
+            return (self.name.clone(), get_sha_from_binary(&self.sha));
         }
     }
 }
+
 pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
     let (input, c_time) = u32(Big)(input)?;
     let (input, c_time_nano) = u32(Big)(input)?;
@@ -285,7 +289,7 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
             uid,
             gid,
             size,
-            sha: get_sha_from_binary(bsha),
+            sha: bsha.to_vec(),
             name: parsed_name.to_owned(),
         },
     ));
@@ -503,7 +507,11 @@ mod object_parsing_tests {
             uid: 501,
             gid: 20,
             size: 435,
-            sha: "77fe5e0425e2f7ba652c54163bf283329456de39".to_owned(),
+            sha: [
+                119, 254, 94, 4, 37, 226, 247, 186, 101, 44, 84, 22, 59, 242, 131, 50, 148, 86,
+                222, 57,
+            ]
+            .to_vec(),
             name: "Cargo.toml".to_owned(),
         };
         let (input, result) = parse_git_index_entry(&entry).unwrap();
