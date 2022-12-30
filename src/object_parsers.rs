@@ -151,6 +151,10 @@ pub trait NameSha {
     fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String);
 }
 
+pub trait ToBinary {
+    fn to_binary(&self) -> Vec<u8>;
+}
+
 #[derive(Debug, PartialEq)]
 pub struct TreeLeaf {
     pub mode: String,
@@ -214,6 +218,36 @@ impl NameSha for IndexEntry {
         } else {
             return (self.name.clone(), get_sha_from_binary(&self.sha));
         }
+    }
+}
+
+impl ToBinary for IndexEntry {
+    fn to_binary(&self) -> Vec<u8> {
+        let c_seconds = self.c_time.timestamp() as u32;
+        let c_nanos = self.c_time.timestamp_subsec_nanos();
+        let m_seconds = self.m_time.timestamp() as u32;
+        let m_nanos = self.m_time.timestamp_subsec_nanos();
+
+        let index_meta_info: Vec<u8> = [
+            c_seconds, c_nanos, m_seconds, m_nanos, self.dev, self.inode, self.mode, self.uid,
+            self.gid, self.size,
+        ]
+        .iter()
+        .flat_map(|i| i.to_be_bytes())
+        .collect();
+
+        let name_size = self.name.len() as u16;
+        let entry_length = 62 + name_size;
+        let padding_bytes: Vec<u8> = (0..(8 - entry_length % 8)).map(|_| b'\0').collect();
+
+        return [
+            index_meta_info,
+            self.sha.clone(),
+            name_size.to_be_bytes().to_vec(),
+            self.name.as_bytes().to_vec(),
+            padding_bytes,
+        ]
+        .concat();
     }
 }
 
@@ -491,6 +525,9 @@ mod object_parsing_tests {
         let (input, result) = parse_git_index_entry(&entry).unwrap();
         assert_eq!(expected, result);
         assert_eq!(0, input.len());
+
+        let round_trip_bytes = result.to_binary();
+        assert_eq!(entry.to_vec(), round_trip_bytes);
     }
 
     #[test]
