@@ -15,6 +15,7 @@ use nom::{
     },
     Err, IResult,
 };
+use sha1_smol as sha1;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::from_utf8;
@@ -194,7 +195,7 @@ pub fn parse_git_tree(input: &[u8]) -> Result<Tree, err::Error> {
 
 // ------------- git index file parsers -----------------
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct IndexEntry {
     pub c_time: DateTime<Utc>,
     pub m_time: DateTime<Utc>,
@@ -311,9 +312,36 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
     ));
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Index {
     pub entries: Vec<IndexEntry>,
+    pub extensions: Vec<u8>,
+}
+
+impl ToBinary for Index {
+    fn to_binary(&self) -> Vec<u8> {
+        let header = [
+            "DIRC".as_bytes(),
+            &[0x00, 0x00, 0x00, 0x02].to_vec(),
+            &(self.entries.len() as u32).to_be_bytes(),
+        ]
+        .concat();
+
+        let entries: Vec<u8> = self
+            .entries
+            .iter()
+            .map(|i| i.to_binary())
+            .collect::<Vec<Vec<u8>>>()
+            .concat();
+
+        let index_contents = [header, entries, self.extensions.clone()].concat();
+
+        let mut hasher = sha1::Sha1::new();
+        hasher.update(&index_contents);
+        let hash = hasher.digest().bytes();
+
+        return [index_contents, hash.to_vec()].concat();
+    }
 }
 
 pub fn parse_git_index(input: &[u8]) -> Result<Index, err::Error> {
@@ -324,8 +352,15 @@ pub fn parse_git_index(input: &[u8]) -> Result<Index, err::Error> {
     }
     let (input, _num_entries) = u32(Big)(input)?;
     // expects at least 1 file in the index
-    let (_, entries) = many1(parse_git_index_entry)(input)?;
-    return Ok(Index { entries });
+    let (input, entries) = many1(parse_git_index_entry)(input)?;
+    // need to drop the 20 byte index contents hash
+    let ext_len = input.len() - 20;
+    let extensions = input[..ext_len].to_vec();
+
+    return Ok(Index {
+        entries,
+        extensions,
+    });
 }
 
 #[cfg(test)]
@@ -580,8 +615,12 @@ mod object_parsing_tests {
             "src/utils.rs",
         ]);
 
-        let index = parse_git_index(&index).unwrap();
-        let file_names: Vec<String> = index.entries.into_iter().map(|e| e.name).collect();
+        let parsed_index = parse_git_index(&index).unwrap();
+        let parsed_index_clone = parsed_index.clone();
+        let file_names: Vec<String> = parsed_index.entries.into_iter().map(|e| e.name).collect();
         assert_eq!(expected, file_names);
+
+        let round_trip_bytes = parsed_index_clone.to_binary();
+        assert_eq!(index.to_vec(), round_trip_bytes);
     }
 }
