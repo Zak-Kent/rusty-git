@@ -30,7 +30,7 @@ fn hash_object(
     } else {
         repo_arg = None;
     }
-    return Ok(Some(obj::write_object(src, repo_arg)?));
+    return Ok(Some(obj::write_object(src, repo_arg)?.to_string()));
 }
 
 // This version of cat-file differs from git's due to the fact git expects

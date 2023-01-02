@@ -94,7 +94,7 @@ pub fn read_object_as_string(sha: &str, repo: &Repo) -> Result<String, err::Erro
     return Ok(from_utf8(&gitobject.contents)?.to_owned());
 }
 
-pub fn write_object(src: SourceFile, repo: Option<&Repo>) -> Result<String, err::Error> {
+pub fn write_object(src: SourceFile, repo: Option<&Repo>) -> Result<sha1::Digest, err::Error> {
     let path = match src {
         SourceFile {
             typ: GitObjTyp::Blob,
@@ -117,13 +117,13 @@ pub fn write_object(src: SourceFile, repo: Option<&Repo>) -> Result<String, err:
 
     let mut hasher = sha1::Sha1::new();
     hasher.update(&contents_with_header);
-    let hash = hasher.digest().to_string();
+    let digest = hasher.digest();
 
     // The existance of a repo indicates that the contents of the file should be
     // compressed and written to the appropriate dir/file in .git/objects
     if let Some(repo) = repo {
         utils::git_check_for_rusty_git_allowed(repo)?;
-
+        let hash = digest.to_string();
         let git_obj_dir = repo.worktree.join(format!(".git/objects/{}", &hash[..2]));
         let git_obj_path = git_obj_dir.join(format!("{}", &hash[2..]));
 
@@ -140,7 +140,7 @@ pub fn write_object(src: SourceFile, repo: Option<&Repo>) -> Result<String, err:
             println!("file with compressed contents already exists at that hash");
         }
     }
-    return Ok(hash.to_owned());
+    return Ok(digest);
 }
 
 #[cfg(test)]
@@ -221,7 +221,7 @@ mod object_tests {
             typ: GitObjTyp::Blob,
             source: fp.to_owned(),
         };
-        let hash = write_object(src, Some(&repo))?;
+        let hash = write_object(src, Some(&repo))?.to_string();
 
         assert_eq!(hash, "323fae03f4606ea9991df8befbb2fca795e648fa".to_owned());
 
