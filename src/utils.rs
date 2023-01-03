@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use std::fs::{create_dir, create_dir_all, metadata, read, read_dir, read_to_string, File};
 use std::io::{Error, Write};
 use std::iter::FromIterator;
+use std::os::unix::prelude::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 use tempfile::{tempdir, TempDir};
@@ -489,7 +490,7 @@ pub fn git_check_for_rusty_git_allowed(repo: &obj::Repo) -> Result<bool, err::Er
     let mut rusty_git_allowed = false;
 
     for node in worktree_dir {
-        let node_val =  node?;
+        let node_val = node?;
         let node_name = node_val.file_name();
         if node_name == ".rusty-git-allowed" {
             rusty_git_allowed = true;
@@ -499,8 +500,56 @@ pub fn git_check_for_rusty_git_allowed(repo: &obj::Repo) -> Result<bool, err::Er
     if rusty_git_allowed {
         return Ok(rusty_git_allowed);
     } else {
-        return Err(err::Error::RustyGitAllowedFileMissing)
+        return Err(err::Error::RustyGitAllowedFileMissing);
     }
+}
+
+pub fn git_file_to_index_entry(
+    file_name: &str,
+) -> Result<objp::IndexEntry, err::Error> {
+    let file = PathBuf::from(file_name);
+    let md = metadata(&file)?;
+
+    let c_time_dt;
+    if let Some(ct) = Utc
+        .timestamp_opt(md.ctime().into(), md.ctime_nsec() as u32)
+        .single()
+    {
+        c_time_dt = ct;
+    } else {
+        return Err(err::Error::TimestampConversionError);
+    };
+
+    let m_time_dt;
+    if let Some(mt) = Utc
+        .timestamp_opt(md.ctime().into(), md.ctime_nsec() as u32)
+        .single()
+    {
+        m_time_dt = mt;
+    } else {
+        return Err(err::Error::TimestampConversionError);
+    };
+
+    let hash = obj::write_object(
+        obj::SourceFile {
+            typ: obj::GitObjTyp::Blob,
+            source: file,
+        },
+        None,
+    )?;
+
+    return Ok(objp::IndexEntry {
+        c_time: c_time_dt,
+        m_time: m_time_dt,
+        dev: md.dev() as u32,
+        inode: md.ino() as u32,
+        mode: md.mode(),
+        uid: md.uid(),
+        gid: md.gid(),
+        size: md.size() as u32,
+        sha: hash.bytes().to_vec(),
+        name: file_name.to_owned(),
+    });
 }
 
 // ----------- fs utils ---------------
