@@ -552,6 +552,29 @@ pub fn git_file_to_index_entry(
     });
 }
 
+pub fn git_add_entry_to_index(
+    repo: &obj::Repo,
+    file_name: &str,
+) -> Result<objp::Index, err::Error> {
+    // don't mess with index unless user opts in
+    git_check_for_rusty_git_allowed(repo)?;
+
+    let index_contents = git_read_index(repo)?;
+    let mut index = objp::parse_git_index(&index_contents)?;
+
+    let entry = git_file_to_index_entry(file_name)?;
+    match index.entries.binary_search(&entry) {
+        // already exists, remove existing, replace with new
+        Ok(pos) => {
+            index.entries.remove(pos);
+            index.entries.insert(pos, entry);
+        },
+        // doesn't exist, add at pos where entry should be
+        Err(pos) => index.entries.insert(pos, entry)
+    };
+    return Ok(index.to_owned());
+}
+
 // ----------- fs utils ---------------
 pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     path.push(ext);

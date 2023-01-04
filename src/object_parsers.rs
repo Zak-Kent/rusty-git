@@ -16,6 +16,7 @@ use nom::{
     Err, IResult,
 };
 use sha1_smol as sha1;
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::from_utf8;
@@ -195,7 +196,7 @@ pub fn parse_git_tree(input: &[u8]) -> Result<Tree, err::Error> {
 
 // ------------- git index file parsers -----------------
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IndexEntry {
     pub c_time: DateTime<Utc>,
     pub m_time: DateTime<Utc>,
@@ -207,6 +208,18 @@ pub struct IndexEntry {
     pub size: u32,
     pub sha: Vec<u8>,
     pub name: String,
+}
+
+impl Ord for IndexEntry {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.name.cmp(&other.name)
+    }
+}
+
+impl PartialOrd for IndexEntry {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
 }
 
 impl NameSha for IndexEntry {
