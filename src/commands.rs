@@ -151,11 +151,12 @@ mod object_tests {
     use std::io::Write;
 
     use super::*;
+    use crate::test_utils;
     use crate::utils;
 
     #[test]
     fn hash_object_returns_hash_and_cat_file_reads_test() -> Result<(), err::Error> {
-        let worktree = utils::test_gitdir().unwrap();
+        let worktree = test_utils::test_gitdir().unwrap();
 
         let fp = worktree.path().join("tempfoo");
         let mut tmpfile = File::create(&fp)?;
@@ -188,10 +189,10 @@ mod object_tests {
     #[test]
     fn can_read_sha_from_head() -> Result<(), err::Error> {
         // TODO: expand this test to cover the log command when added
-        let worktree = utils::test_gitdir().unwrap();
+        let worktree = test_utils::test_gitdir().unwrap();
         let repo = obj::Repo::new(worktree.path().to_path_buf())?;
 
-        utils::test_add_dummy_commit_and_update_ref_heads(&"fake-head-sha", &repo)?;
+        test_utils::test_add_dummy_commit_and_update_ref_heads(&"fake-head-sha", &repo)?;
 
         let head_sha = utils::git_sha_from_head(&repo)?;
         assert_eq!("fake-head-sha", head_sha);

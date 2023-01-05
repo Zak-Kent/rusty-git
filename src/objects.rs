@@ -149,12 +149,13 @@ mod object_tests {
     use std::io::Write;
 
     use super::*;
+    use crate::test_utils;
     use crate::utils;
 
     #[test]
     fn git_repo_setup_test() {
         // unwrap will panic here if dir setup fails
-        let worktree = utils::test_gitdir().unwrap();
+        let worktree = test_utils::test_gitdir().unwrap();
         let gitdir = worktree.path().join(".git");
         let gitconf = worktree.path().join(".git/config");
 
@@ -164,14 +165,14 @@ mod object_tests {
 
     #[test]
     fn repo_struct_creation_succeeds_when_in_git_repo() -> Result<(), err::Error> {
-        let worktree = utils::test_gitdir().unwrap();
+        let worktree = test_utils::test_gitdir().unwrap();
         let _repo = Repo::new(worktree.path().to_path_buf())?;
         Ok(())
     }
 
     #[test]
     fn repo_struct_creation_fails_when_not_in_git_repo() -> Result<(), err::Error> {
-        let tmpdir = utils::test_tempdir().unwrap();
+        let tmpdir = test_utils::test_tempdir().unwrap();
         let repo = Repo::new(tmpdir.path().to_path_buf());
         assert!(repo.is_err());
         match repo {
@@ -183,7 +184,7 @@ mod object_tests {
 
     #[test]
     fn find_gitdir_and_create_repo_finds_parent_gitdir() -> Result<(), err::Error> {
-        let worktree = utils::test_gitdir().unwrap();
+        let worktree = test_utils::test_gitdir().unwrap();
 
         // create a nested path with .git living a few levels above
         let nested_path = worktree.path().join("foo/bar/baz");
@@ -198,7 +199,7 @@ mod object_tests {
 
     #[test]
     fn find_gitdir_and_create_repo_errors_when_no_gitdir_in_path() -> Result<(), err::Error> {
-        let tmpdir = utils::test_tempdir().unwrap();
+        let tmpdir = test_utils::test_tempdir().unwrap();
 
         let repo = find_gitdir_and_create_repo(tmpdir.path().to_str().unwrap().to_owned());
         match repo {
@@ -210,7 +211,7 @@ mod object_tests {
 
     #[test]
     fn generate_hash_and_write_compressed_file() -> Result<(), err::Error> {
-        let worktree = utils::test_gitdir().unwrap();
+        let worktree = test_utils::test_gitdir().unwrap();
         let repo = Repo::new(worktree.path().to_path_buf())?;
 
         let fp = worktree.path().join("tempfoo");

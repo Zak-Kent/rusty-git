@@ -1,54 +1,15 @@
 use chrono::{DateTime, TimeZone, Utc};
 use std::collections::HashSet;
 use std::fs::{create_dir, create_dir_all, metadata, read, read_dir, read_to_string, File};
-use std::io::{Error, Write};
+use std::io::Write;
 use std::iter::FromIterator;
 use std::os::unix::prelude::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
-use tempfile::{tempdir, TempDir};
 
 use crate::error as err;
 use crate::object_parsers::{self as objp, NameSha};
 use crate::objects as obj;
-
-// ----------- test utils ---------------
-pub fn test_tempdir() -> Result<TempDir, Error> {
-    let tmp_dir = tempdir()?;
-    Ok(tmp_dir)
-}
-
-#[allow(dead_code)]
-pub fn test_gitdir() -> Result<TempDir, err::Error> {
-    let dir = test_tempdir()?;
-    create_git_repo(dir.path())?;
-    return Ok(dir);
-}
-
-#[allow(dead_code)]
-pub fn test_cmd(cmd: &str, arg: Option<&str>) -> Vec<String> {
-    let mut cmd_result = Vec::from(["rusty-git".to_owned(), cmd.to_owned()]);
-
-    if let Some(arg) = arg {
-        cmd_result.push(arg.to_owned());
-    }
-
-    return cmd_result;
-}
-
-#[allow(dead_code)]
-pub fn test_add_dummy_commit_and_update_ref_heads(
-    sha: &str,
-    repo: &obj::Repo,
-) -> Result<(), err::Error> {
-    //TODO: expand this to add an actual commit in .git/objects later
-    let head_path = repo.gitdir.join("HEAD");
-    let head = read(head_path)?;
-    let head_ref = objp::parse_git_head(&head)?;
-    let mut ref_file = File::create(repo.gitdir.join(head_ref))?;
-    writeln!(ref_file, "{}", sha)?;
-    Ok(())
-}
 
 // ----------- git utils ---------------
 pub fn is_git_repo(path: &Path) -> bool {
@@ -617,31 +578,31 @@ pub fn dir_ok_for_checkout(path: &Path) -> Result<bool, err::Error> {
 
 #[cfg(test)]
 mod utils_tests {
+    use super::*;
     use ini;
     use std::collections::HashMap;
-
-    use super::*;
+    use crate::test_utils as test_utils;
 
     #[test]
     fn return_true_when_git_repo() {
         // need the two var decs below to get around the borrow checker
         // not seeing that the ref .path() creates should be bound
         // through the unwrap when written: Result<TempDir>.unwrap().path()
-        let gitdir = test_gitdir().unwrap();
+        let gitdir = test_utils::test_gitdir().unwrap();
         let gitdir_path = gitdir.path();
         assert!(is_git_repo(gitdir_path))
     }
 
     #[test]
     fn return_false_when_not_git_repo() {
-        let tempdir = test_tempdir().unwrap();
+        let tempdir = test_utils::test_tempdir().unwrap();
         let tempdir_path = tempdir.path();
         assert!(!is_git_repo(tempdir_path))
     }
 
     #[test]
     fn create_gitdir_succeeds_in_empty_dir() {
-        let tempdir = test_tempdir().unwrap();
+        let tempdir = test_utils::test_tempdir().unwrap();
         let tempdir_path = tempdir.path();
 
         let create_git_repo_result = create_git_repo(&tempdir_path);
@@ -679,7 +640,7 @@ mod utils_tests {
 
     #[test]
     fn create_gitdir_errors_in_an_existing_git_dir() {
-        let gitdir = test_gitdir().unwrap();
+        let gitdir = test_utils::test_gitdir().unwrap();
         let gitdir_path = gitdir.path();
         assert!(is_git_repo(gitdir_path));
 
@@ -689,15 +650,15 @@ mod utils_tests {
 
     #[test]
     fn dir_is_empty_works_as_expected() {
-        let tempdir = test_tempdir().unwrap();
-        let gitdir = test_gitdir().unwrap();
+        let tempdir = test_utils::test_tempdir().unwrap();
+        let gitdir = test_utils::test_gitdir().unwrap();
         assert_eq!(Ok(true), dir_is_empty(tempdir.path()));
         assert_eq!(Ok(false), dir_is_empty(gitdir.path()));
     }
 
     #[test]
     fn resolve_ref_follows_indirect_refs_until_direct_ref() {
-        let gitdir = test_gitdir().unwrap();
+        let gitdir = test_utils::test_gitdir().unwrap();
 
         let foo_path = gitdir.path().join(".git/refs/heads/foo");
         let mut foo_ref = File::create(&foo_path).unwrap();
@@ -715,7 +676,7 @@ mod utils_tests {
 
     #[test]
     fn can_create_and_read_lightweight_tags() {
-        let gitdir = test_gitdir().unwrap();
+        let gitdir = test_utils::test_gitdir().unwrap();
         let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
 
         let tag_sha = "0e6cfc8b4209c9ecca33dbd30c41d1d4289736e1".to_owned();

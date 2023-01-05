@@ -6,11 +6,11 @@ mod commands;
 mod error;
 mod object_parsers;
 mod objects;
+mod test_utils;
 mod utils;
 
 use crate::commands as cmd;
 use crate::error as err;
-
 
 fn main() {
     let cli = cli::Cli::parse();
