@@ -467,8 +467,9 @@ pub fn git_check_for_rusty_git_allowed(repo: &obj::Repo) -> Result<bool, err::Er
 
 pub fn git_file_to_index_entry(
     file_name: &str,
+    repo: &obj::Repo,
 ) -> Result<objp::IndexEntry, err::Error> {
-    let file = PathBuf::from(file_name);
+    let file = repo.worktree.join(file_name);
     let md = metadata(&file)?;
 
     let c_time_dt;
@@ -523,15 +524,15 @@ pub fn git_add_entry_to_index(
     let index_contents = git_read_index(repo)?;
     let mut index = objp::parse_git_index(&index_contents)?;
 
-    let entry = git_file_to_index_entry(file_name)?;
+    let entry = git_file_to_index_entry(file_name, repo)?;
     match index.entries.binary_search(&entry) {
         // already exists, remove existing, replace with new
         Ok(pos) => {
             index.entries.remove(pos);
             index.entries.insert(pos, entry);
-        },
+        }
         // doesn't exist, add at pos where entry should be
-        Err(pos) => index.entries.insert(pos, entry)
+        Err(pos) => index.entries.insert(pos, entry),
     };
     return Ok(index.to_owned());
 }
@@ -579,9 +580,9 @@ pub fn dir_ok_for_checkout(path: &Path) -> Result<bool, err::Error> {
 #[cfg(test)]
 mod utils_tests {
     use super::*;
+    use crate::test_utils;
     use ini;
     use std::collections::HashMap;
-    use crate::test_utils as test_utils;
 
     #[test]
     fn return_true_when_git_repo() {

@@ -147,6 +147,8 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
 
 #[cfg(test)]
 mod object_tests {
+    use std::collections::HashSet;
+    use std::fs::read;
     use std::fs::File;
     use std::io::Write;
 
@@ -197,5 +199,37 @@ mod object_tests {
         let head_sha = utils::git_sha_from_head(&repo)?;
         assert_eq!("fake-head-sha", head_sha);
         Ok(())
+    }
+
+    #[test]
+    fn can_add_a_new_file_to_existing_index() {
+        let gitdir = test_utils::test_gitdir_with_index().unwrap();
+        let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
+
+        let starting_index = read(gitdir.path().join(".git/index")).unwrap();
+        let parsed_starting_index = objp::parse_git_index(&starting_index).unwrap();
+        let mut starting_file_names: HashSet<String> = HashSet::new();
+        for e in parsed_starting_index.entries {
+            starting_file_names.insert(e.name);
+        }
+
+        let new_file_name = "foo.txt";
+        let new_file = File::create(repo.worktree.join(new_file_name));
+        writeln!(new_file.unwrap(), "{}", "hahaha").unwrap();
+
+        let updated_index = utils::git_add_entry_to_index(&repo, new_file_name).unwrap();
+        let mut updated_file_names: HashSet<String> = HashSet::new();
+        for e in updated_index.entries {
+            updated_file_names.insert(e.name);
+        }
+
+        assert_eq!(
+            1,
+            updated_file_names.difference(&starting_file_names).count()
+        );
+        assert_eq!(
+            new_file_name,
+            updated_file_names.difference(&starting_file_names).last().unwrap()
+        )
     }
 }

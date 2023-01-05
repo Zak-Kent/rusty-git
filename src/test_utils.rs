@@ -18,6 +18,13 @@ pub fn test_gitdir() -> Result<TempDir, err::Error> {
     return Ok(dir);
 }
 
+pub fn test_gitdir_with_index() -> Result<TempDir, err::Error> {
+    let dir = test_gitdir()?;
+    let mut index = File::create(dir.path().join(".git/index"))?;
+    index.write(&fake_index_bytes())?;
+    return Ok(dir);
+}
+
 pub fn test_add_dummy_commit_and_update_ref_heads(
     sha: &str,
     repo: &obj::Repo,
