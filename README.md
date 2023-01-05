@@ -1,4 +1,4 @@
-## Rusty-git
+# Rusty-git
 
 This is a toy Git clone written in Rust primarily as a learning exercise
 designed to increase my knowledge of internal Git data structures and to gain
