@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 
-#[derive(Subcommand, Debug)]
+#[derive(Subcommand, Debug, PartialEq)]
 pub enum GitCmd {
     /// Create an empty git repo, errors if git repo already exists
     Init,

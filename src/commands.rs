@@ -124,24 +124,33 @@ pub fn status(repo: obj::Repo) -> Result<Option<String>, err::Error> {
 }
 
 pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
-    let repo = obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?;
     let command = &cmd.command;
+    let repo: Option<obj::Repo>;
+
+    // unwrap calls to repo below safe because of this check
+    if cmd.command != cli::GitCmd::Init {
+        repo = Some(obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?);
+    } else {
+        repo = None;
+    }
 
     match command {
         cli::GitCmd::Init => run_init(&cmd),
-        cli::GitCmd::HashObject { path } => hash_object(path.to_owned(), repo, write_object),
-        cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo),
-        cli::GitCmd::Log { sha } => log(sha.to_owned(), repo),
-        cli::GitCmd::LsTree { sha } => lstree(sha.to_owned(), repo),
-        cli::GitCmd::Checkout { sha, dir } => checkout(sha, Path::new(dir), repo),
-        cli::GitCmd::ShowRef => show_ref(repo),
+        cli::GitCmd::HashObject { path } => {
+            hash_object(path.to_owned(), repo.unwrap(), write_object)
+        }
+        cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo.unwrap()),
+        cli::GitCmd::Log { sha } => log(sha.to_owned(), repo.unwrap()),
+        cli::GitCmd::LsTree { sha } => lstree(sha.to_owned(), repo.unwrap()),
+        cli::GitCmd::Checkout { sha, dir } => checkout(sha, Path::new(dir), repo.unwrap()),
+        cli::GitCmd::ShowRef => show_ref(repo.unwrap()),
         cli::GitCmd::Tag {
             name,
             object,
             add_object,
-        } => tag(name, object, add_object, repo),
-        cli::GitCmd::LsFiles => ls_files(repo),
-        cli::GitCmd::Status => status(repo),
+        } => tag(name, object, add_object, repo.unwrap()),
+        cli::GitCmd::LsFiles => ls_files(repo.unwrap()),
+        cli::GitCmd::Status => status(repo.unwrap()),
     }
 }
 
@@ -229,7 +238,10 @@ mod object_tests {
         );
         assert_eq!(
             new_file_name,
-            updated_file_names.difference(&starting_file_names).last().unwrap()
+            updated_file_names
+                .difference(&starting_file_names)
+                .last()
+                .unwrap()
         )
     }
 }
