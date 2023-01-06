@@ -551,10 +551,6 @@ pub fn content_length(path: &Path) -> Result<u64, err::Error> {
     Ok(metadata(path)?.len())
 }
 
-pub fn dir_is_empty(path: &Path) -> Result<bool, err::Error> {
-    return Ok(path.try_exists()? && path.read_dir()?.next().is_none());
-}
-
 fn dir_path_to_string(path: &Path) -> Result<String, err::Error> {
     if let Some(dir_name) = path.to_str() {
         return Ok(dir_name.to_owned());
@@ -653,8 +649,8 @@ mod utils_tests {
     fn dir_is_empty_works_as_expected() {
         let tempdir = test_utils::test_tempdir().unwrap();
         let gitdir = test_utils::test_gitdir().unwrap();
-        assert_eq!(Ok(true), dir_is_empty(tempdir.path()));
-        assert_eq!(Ok(false), dir_is_empty(gitdir.path()));
+        assert_eq!(Ok(true), test_utils::dir_is_empty(tempdir.path()));
+        assert_eq!(Ok(false), test_utils::dir_is_empty(gitdir.path()));
     }
 
     #[test]

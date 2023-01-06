@@ -1,5 +1,6 @@
 use std::fs::{read, File};
 use std::io::{Error, Write};
+use std::path::Path;
 use tempfile::{tempdir, TempDir};
 
 use crate::error as err;
@@ -7,17 +8,25 @@ use crate::object_parsers as objp;
 use crate::objects as obj;
 use crate::utils;
 
+#[allow(dead_code)]
+pub fn dir_is_empty(path: &Path) -> Result<bool, err::Error> {
+    return Ok(path.try_exists()? && path.read_dir()?.next().is_none());
+}
+
+#[allow(dead_code)]
 pub fn test_tempdir() -> Result<TempDir, Error> {
     let tmp_dir = tempdir()?;
     return Ok(tmp_dir);
 }
 
+#[allow(dead_code)]
 pub fn test_gitdir() -> Result<TempDir, err::Error> {
     let dir = test_tempdir()?;
     utils::create_git_repo(dir.path())?;
     return Ok(dir);
 }
 
+#[allow(dead_code)]
 pub fn test_gitdir_with_index() -> Result<TempDir, err::Error> {
     let dir = test_gitdir()?;
     let mut index = File::create(dir.path().join(".git/index"))?;
@@ -25,6 +34,7 @@ pub fn test_gitdir_with_index() -> Result<TempDir, err::Error> {
     return Ok(dir);
 }
 
+#[allow(dead_code)]
 pub fn test_add_dummy_commit_and_update_ref_heads(
     sha: &str,
     repo: &obj::Repo,
@@ -38,6 +48,7 @@ pub fn test_add_dummy_commit_and_update_ref_heads(
     Ok(())
 }
 
+#[allow(dead_code)]
 pub fn fake_index_bytes() -> Vec<u8> {
     [
         68, 73, 82, 67, 0, 0, 0, 2, 0, 0, 0, 8, 99, 134, 133, 151, 26, 198, 1, 77, 99, 134, 133,
@@ -77,6 +88,7 @@ pub fn fake_index_bytes() -> Vec<u8> {
     .to_vec()
 }
 
+#[allow(dead_code)]
 pub fn fake_index_entry() -> Vec<u8> {
     [
         99, 134, 102, 238, 3, 187, 189, 180, 99, 134, 102, 238, 3, 187, 189, 180, 1, 0, 0, 4, 0,

@@ -31,7 +31,7 @@ fn generic_nom_err(input: &[u8]) -> Err<Error<&[u8]>> {
     })
 }
 
-fn parse_obj_type<'a>(input: &'a [u8], path: &'a PathBuf) -> IResult<&'a [u8], obj::GitObjTyp> {
+fn parse_obj_type<'a>(input: &'a [u8]) -> IResult<&'a [u8], obj::GitObjTyp> {
     let (input, obj) = alt((tag("blob"), tag("commit"), tag("tree")))(input)?;
     return match obj {
         b"blob" => Ok((input, obj::GitObjTyp::Blob)),
@@ -63,7 +63,7 @@ pub fn parse_git_obj<'a>(
     path: &'a PathBuf,
     sha: &'a str,
 ) -> Result<obj::GitObject, err::Error> {
-    let (input, obj) = parse_obj_type(input, path)?;
+    let (input, obj) = parse_obj_type(input)?;
     let (contents, len) = parse_obj_len(input)?;
     return Ok(obj::GitObject {
         obj,
