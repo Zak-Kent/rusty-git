@@ -327,6 +327,11 @@ fn git_staged_but_not_commited(
 
 fn git_ignored_files(repo: &obj::Repo) -> Result<HashSet<PathBuf>, err::Error> {
     let gitignore_path = repo.worktree.join(".gitignore");
+    // if no gitignore return empty hashset
+    if !gitignore_path.exists() {
+        return Ok(HashSet::new());
+    }
+
     let gitignore = read(gitignore_path)?;
 
     let mut output: HashSet<PathBuf> = HashSet::new();
