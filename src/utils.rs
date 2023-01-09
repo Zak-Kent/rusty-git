@@ -427,7 +427,19 @@ fn git_local_changes_not_staged_for_commit_or_untracked(
     });
 }
 
+pub fn git_index_exists(repo: &obj::Repo) -> bool {
+    return repo.gitdir.clone().join("index").exists();
+}
+
 pub fn git_status(repo: &obj::Repo) -> Result<String, err::Error> {
+    if !git_index_exists(repo) {
+        return Ok(
+            "Nothing in the stagging area!
+             The .git/index file doesn't yet exist try:
+             'rusty-git add <file-name>' to trigger index creation"
+                .to_owned());
+    }
+
     let idx = git_read_index(repo)?;
     let index = objp::parse_git_index(&idx)?;
 
