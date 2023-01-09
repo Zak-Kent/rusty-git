@@ -109,10 +109,6 @@ pub fn git_follow_commits_to_root(
         // add parent commits to log
         commit_log.push(commit.clone());
     }
-
-    // add root commit to log
-    commit_log.push(commit.clone());
-
     return Ok(commit_log);
 }
 
