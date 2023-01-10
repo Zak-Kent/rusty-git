@@ -7,7 +7,7 @@ use nom::{
         is_newline,
     },
     error::{Error, ErrorKind},
-    multi::many1,
+    multi::{many0, many1},
     number::{
         complete::{u16, u32},
         Endianness::Big,
@@ -24,10 +24,21 @@ use crate::error as err;
 use crate::objects as obj;
 
 // TODO: figure out a way to make nom errors more specific
-fn generic_nom_err(input: &[u8]) -> Err<Error<&[u8]>> {
+fn generic_nom_failure(input: &[u8]) -> Err<Error<&[u8]>> {
     Err::Failure(Error {
         input,
         code: ErrorKind::Fail,
+    })
+}
+
+fn nom_many0_err(input: &[u8]) -> Err<Error<&[u8]>> {
+    // this error type allows the parser to continue with the input
+    // after the failed parse, which is needed when the entries in
+    // the index file have been exahusted but extension info and sha
+    // remains
+    Err::Error(Error {
+        input,
+        code: ErrorKind::Many0,
     })
 }
 
@@ -37,7 +48,7 @@ fn parse_obj_type<'a>(input: &'a [u8]) -> IResult<&'a [u8], obj::GitObjTyp> {
         b"blob" => Ok((input, obj::GitObjTyp::Blob)),
         b"commit" => Ok((input, obj::GitObjTyp::Commit)),
         b"tree" => Ok((input, obj::GitObjTyp::Tree)),
-        _ => Err(generic_nom_err(input)),
+        _ => Err(generic_nom_failure(input)),
     };
 }
 
@@ -48,12 +59,12 @@ fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
 
     let str_num = match from_utf8(size) {
         Ok(s) => s,
-        _ => return Err(generic_nom_err(input)),
+        _ => return Err(generic_nom_failure(input)),
     };
 
     let output = match str_num.parse::<usize>() {
         Ok(n) => n,
-        _ => return Err(generic_nom_err(input)),
+        _ => return Err(generic_nom_failure(input)),
     };
     return Ok((input, output));
 }
@@ -152,10 +163,6 @@ pub trait NameSha {
     fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String);
 }
 
-pub trait ToBinary {
-    fn to_binary(&self) -> Vec<u8>;
-}
-
 #[derive(Debug, PartialEq)]
 pub struct TreeLeaf {
     pub mode: String,
@@ -194,6 +201,10 @@ pub fn parse_git_tree(input: &[u8]) -> Result<Tree, err::Error> {
 }
 
 // ------------- git index file parsers -----------------
+
+pub trait ToBinary {
+    fn to_binary(&self) -> Vec<u8>;
+}
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct IndexEntry {
@@ -271,7 +282,7 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
     if let Some(ct) = Utc.timestamp_opt(c_time.into(), c_time_nano).single() {
         c_time_dt = ct;
     } else {
-        return Err(generic_nom_err(input));
+        return Err(nom_many0_err(input));
     };
 
     let (input, m_time) = u32(Big)(input)?;
@@ -280,7 +291,7 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
     if let Some(mt) = Utc.timestamp_opt(m_time.into(), m_time_nano).single() {
         m_time_dt = mt;
     } else {
-        return Err(generic_nom_err(input));
+        return Err(nom_many0_err(input));
     };
 
     let (input, dev) = u32(Big)(input)?;
@@ -298,7 +309,7 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
     if let Ok(pn) = from_utf8(name) {
         parsed_name = pn;
     } else {
-        return Err(generic_nom_err(input));
+        return Err(nom_many0_err(input));
     }
 
     // 62 bytes per entry not counting length of name
@@ -324,7 +335,7 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
     ));
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Index {
     pub entries: Vec<IndexEntry>,
     pub extensions: Vec<u8>,
@@ -363,8 +374,8 @@ pub fn parse_git_index(input: &[u8]) -> Result<Index, err::Error> {
         return Err(err::Error::GitUnrecognizedIndexVersion(version));
     }
     let (input, _num_entries) = u32(Big)(input)?;
-    // expects at least 1 file in the index
-    let (input, entries) = many1(parse_git_index_entry)(input)?;
+    let (input, entries) = many0(parse_git_index_entry)(input)?;
+
     // need to drop the 20 byte index contents hash
     let ext_len = input.len() - 20;
     let extensions = input[..ext_len].to_vec();
@@ -378,9 +389,9 @@ pub fn parse_git_index(input: &[u8]) -> Result<Index, err::Error> {
 #[cfg(test)]
 mod object_parsing_tests {
     use super::*;
+    use crate::test_utils;
     use hex;
     use sha1_smol as sha1;
-    use crate::test_utils as test_utils;
 
     #[test]
     fn can_parse_git_object() {
@@ -596,5 +607,23 @@ mod object_parsing_tests {
 
         let round_trip_bytes = parsed_index_clone.to_binary();
         assert_eq!(index.to_vec(), round_trip_bytes);
+    }
+
+    #[test]
+    fn can_parse_index_with_no_entries() {
+        // an index with no entries can happen if someone adds a file using
+        // 'git add <file>' and then removes it with 'git rm --cached <file>'
+        // this test more importantly checks that a failed parse of an entry
+        // doesn't error out of parsing all together. Sometimes the entry
+        // parser might attempt to parse the sha at the end of the index as
+        // an entry and that should fail but allow parsing to continue with
+        // the next parser after the index_entry_parser
+        let index = test_utils::fake_index_no_entry();
+        let parsed_index = parse_git_index(&index).unwrap();
+        let expected = Index {
+            entries: [].to_vec(),
+            extensions: [].to_vec()
+        };
+        assert_eq!(expected, parsed_index);
     }
 }
