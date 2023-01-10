@@ -301,11 +301,21 @@ fn git_staged_but_not_commited(
     repo: &obj::Repo,
     index: &objp::Index,
 ) -> Result<String, err::Error> {
-    // get a set of (name, sha) pairs for each file in the last commit object
-    let head_sha = git_sha_from_head(repo)?;
-    let obj::GitObject { contents, sha, .. } = obj::read_object(&head_sha, &repo)?;
-    let commit_tree = git_get_tree_from_commit(&sha, &contents, &repo)?;
-    let commit_tree_files_n_shas = git_tree_file_sha_pairs(commit_tree, None, repo)?;
+    let commit_tree_files_n_shas: HashSet<(String, String)>;
+    let head_sha = git_sha_from_head(repo);
+
+    if let Ok(hsha) = head_sha {
+        // get a set of (name, sha) pairs for each file in the last commit object
+        let obj::GitObject { contents, sha, .. } = obj::read_object(&hsha, &repo)?;
+        let commit_tree = git_get_tree_from_commit(&sha, &contents, &repo)?;
+        commit_tree_files_n_shas = git_tree_file_sha_pairs(commit_tree, None, repo)?;
+    } else {
+        // This error happens when no commits exist yet and you try to look
+        // them up from HEAD. This can happen when running status before
+        // a commit is added.
+        assert!(head_sha.err() == Some(err::Error::GitNoCommitsExistYet));
+        commit_tree_files_n_shas = HashSet::new();
+    };
 
     // get set of (name, sha) pairs for each file in the index
     let index_files_n_shas: HashSet<(String, String)> =
