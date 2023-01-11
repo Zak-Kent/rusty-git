@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
 use crate::error as err;
-use crate::object_parsers::{self as objp, NameSha};
+use crate::object_parsers::{self as objp, NameSha, ToBinary};
 use crate::objects as obj;
 
 // ----------- git utils ---------------
@@ -541,9 +541,6 @@ pub fn git_add_entry_to_index(
     repo: &obj::Repo,
     file_name: &str,
 ) -> Result<objp::Index, err::Error> {
-    // don't mess with index unless user opts in
-    git_check_for_rusty_git_allowed(repo)?;
-
     let index_contents = git_read_index(repo)?;
     let mut index = objp::parse_git_index(&index_contents)?;
 
@@ -558,6 +555,19 @@ pub fn git_add_entry_to_index(
         Err(pos) => index.entries.insert(pos, entry),
     };
     return Ok(index.to_owned());
+}
+
+pub fn git_write_index(index: objp::Index, repo: &obj::Repo) -> Result<(), err::Error> {
+    // the File::create call will truncate the index
+    let mut index_file = File::create(repo.gitdir.join("index"))?;
+    index_file.write(&index.to_binary())?;
+    return Ok(());
+}
+
+pub fn git_update_index(repo: &obj::Repo, file_name: &str) -> Result<(), err::Error> {
+    let updated_index = git_add_entry_to_index(repo, file_name)?;
+    git_write_index(updated_index, repo)?;
+    return Ok(());
 }
 
 // ----------- fs utils ---------------

@@ -43,6 +43,10 @@ pub enum GitCmd {
     LsFiles,
     /// Show the working tree status
     Status,
+    /// Add file contents to the index
+    Add {
+        file_name: String
+    },
 }
 
 #[derive(Parser, Debug)]

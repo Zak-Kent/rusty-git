@@ -341,6 +341,15 @@ pub struct Index {
     pub extensions: Vec<u8>,
 }
 
+impl Index {
+    pub fn new(entry: IndexEntry) -> Result<Index, err::Error> {
+        return Ok(Index {
+            entries: [entry].to_vec(),
+            extensions: [].to_vec(),
+        });
+    }
+}
+
 impl ToBinary for Index {
     fn to_binary(&self) -> Vec<u8> {
         let header = [

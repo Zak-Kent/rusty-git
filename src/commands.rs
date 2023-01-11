@@ -123,6 +123,26 @@ pub fn status(repo: obj::Repo) -> Result<Option<String>, err::Error> {
     return Ok(Some(status));
 }
 
+pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
+    // don't mess with index unless user opts in
+    utils::git_check_for_rusty_git_allowed(&repo)?;
+
+    // 'git add' hashes the file and adds it to .git/objects
+    hash_object(file_name.clone(), repo.clone(), true)?;
+
+    let index_exists = utils::git_index_exists(&repo);
+    if index_exists {
+        let _file_exists = utils::build_path(repo.worktree.clone(), &file_name)?;
+        utils::git_update_index(&repo, &file_name)?;
+    } else {
+        // index doesn't exist yet and must be created
+        let entry = utils::git_file_to_index_entry(&file_name, &repo)?;
+        let index = objp::Index::new(entry)?;
+        utils::git_write_index(index, &repo)?;
+    }
+    return Ok(None);
+}
+
 pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
     let command = &cmd.command;
     let repo: Option<obj::Repo>;
@@ -151,6 +171,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
         } => tag(name, object, add_object, repo.unwrap()),
         cli::GitCmd::LsFiles => ls_files(repo.unwrap()),
         cli::GitCmd::Status => status(repo.unwrap()),
+        cli::GitCmd::Add { file_name } => add(file_name.to_owned(), repo.unwrap()),
     }
 }
 
@@ -243,5 +264,54 @@ mod object_tests {
                 .last()
                 .unwrap()
         )
+    }
+
+    #[test]
+    fn can_create_index_when_first_file_added() {
+        let gitdir = test_utils::test_gitdir().unwrap();
+        let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
+
+        let new_file_name = "foo.txt";
+        let new_file_full_path = repo.worktree.join(new_file_name);
+        let new_file = File::create(new_file_full_path.clone());
+        writeln!(new_file.unwrap(), "{}", "hahaha").unwrap();
+
+        let add_cmd = cli::Cli {
+            command: cli::GitCmd::Add {
+                file_name: new_file_full_path.clone().to_str().unwrap().to_owned(),
+            },
+            repo_path: repo.worktree.to_str().unwrap().to_owned(),
+        };
+
+        // .git/index file doesn't exist before add cmd is run
+        let index_exists = &gitdir.path().join(".git/index").exists();
+        assert!(!index_exists);
+
+        let git_objects_empty = &gitdir
+            .path()
+            .join(".git/objects")
+            .read_dir()
+            .unwrap()
+            .next()
+            .is_none();
+        assert!(git_objects_empty);
+
+        // running add command creates a blob object and .git/index file
+        run_cmd(&add_cmd, false).unwrap();
+
+        let index = read(gitdir.path().join(".git/index")).unwrap();
+        let parsed_index = objp::parse_git_index(&index).unwrap();
+        assert_eq!(1, parsed_index.entries.len());
+        assert_eq!(
+            new_file_full_path.to_str().unwrap(),
+            parsed_index.entries.first().unwrap().name.as_str()
+        );
+
+        let git_objects = gitdir
+            .path()
+            .join(".git/objects")
+            .read_dir()
+            .unwrap();
+        assert_eq!(1, git_objects.count());
     }
 }
