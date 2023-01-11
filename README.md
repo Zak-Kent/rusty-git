@@ -39,5 +39,6 @@ Commands:
   tag          Create or list tag objects
   ls-files     List the names of the files being tracked in the git index
   status       Show the working tree status
+  add          Add file contents to the index
   help         Print this message or the help of the given subcommand(s)
 ```
