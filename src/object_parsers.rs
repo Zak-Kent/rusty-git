@@ -120,6 +120,36 @@ pub struct KvsMsg {
     pub sha: String,
 }
 
+impl ToBinary for KvsMsg {
+    fn to_binary(&self) -> Vec<u8> {
+        let mut commit_bytes: Vec<u8> = Vec::new();
+        for elm in self.kvs_order.clone() {
+            if let Some((k, v)) = self.kvs.get_key_value(&elm) {
+                let mut line: Vec<u8> = [k.clone(), [b' '].to_vec(), v.clone(), [b'\n'].to_vec()]
+                    .into_iter()
+                    .flatten()
+                    .collect();
+                commit_bytes.append(&mut line);
+            }
+        }
+        commit_bytes.push(b'\n');
+        commit_bytes.append(&mut self.msg.clone());
+
+        let mut output_bytes: Vec<u8> = [
+            b"commit".to_vec(),
+            [b' '].to_vec(),
+            commit_bytes.len().to_string().as_bytes().to_vec(),
+            [b'\x00'].to_vec(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
+        output_bytes.append(&mut commit_bytes);
+        return output_bytes;
+    }
+}
+
 pub fn parse_kv_list_msg(input: &[u8], sha: &str) -> Result<KvsMsg, err::Error> {
     let (input, (kvs_order, kvs)) = parse_kv_pairs(input)?;
     let (input, _) = parse_seperator_line(input)?;
@@ -631,8 +661,21 @@ mod object_parsing_tests {
         let parsed_index = parse_git_index(&index).unwrap();
         let expected = Index {
             entries: [].to_vec(),
-            extensions: [].to_vec()
+            extensions: [].to_vec(),
         };
         assert_eq!(expected, parsed_index);
+    }
+
+    #[test]
+    fn can_round_trip_commit() {
+        let commit_bytes = test_utils::fake_commit();
+        let sha = "8f30e364422bba93030062297731f00a1510984b";
+        let parsed_commit = parse_git_obj(&commit_bytes, &PathBuf::from("foo"), sha).unwrap();
+
+        // instances of the KvsMsg struct are the in mem representation of commits
+        // it might make sense to combine KvsMsg with GitObject at some point.
+        let parsed_kvsmsg = parse_kv_list_msg(&parsed_commit.contents, sha).unwrap();
+        let round_trip_commit = parsed_kvsmsg.to_binary();
+        assert_eq!(commit_bytes, round_trip_commit);
     }
 }
