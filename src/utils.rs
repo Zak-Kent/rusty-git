@@ -11,7 +11,6 @@ use crate::error as err;
 use crate::object_parsers::{self as objp, NameSha, ToBinary};
 use crate::objects as obj;
 
-use crate::cmd_mods::refs;
 
 // ----------- git utils ---------------
 pub fn is_git_repo(path: &Path) -> bool {
@@ -73,29 +72,6 @@ pub fn git_get_tree_from_commit(
     let tree = objp::parse_git_tree(&contents)?;
 
     return Ok(tree);
-}
-
-pub fn git_list_all_tags(repo: &obj::Repo) -> Result<Vec<String>, err::Error> {
-    let tags_path = repo.gitdir.join("refs/tags/");
-    let tags = refs::gather_refs(Some(&tags_path), &repo)?;
-    return Ok(tags);
-}
-
-pub fn git_create_lightweight_tag(
-    tag_name: &String,
-    object: &String,
-    repo: &obj::Repo,
-) -> Result<(), err::Error> {
-    let tag_sha: String;
-    if object == "HEAD" {
-        tag_sha = git_sha_from_head(repo)?;
-    } else {
-        tag_sha = object.to_owned();
-    };
-    let tag_path = repo.gitdir.join(format!("refs/tags/{}", tag_name));
-    let mut tag = File::create(&tag_path)?;
-    writeln!(tag, "{}", tag_sha)?;
-    return Ok(());
 }
 
 pub fn git_read_index(repo: &obj::Repo) -> Result<Vec<u8>, err::Error> {
@@ -459,18 +435,5 @@ mod utils_tests {
         let gitdir = test_utils::test_gitdir().unwrap();
         assert_eq!(Ok(true), test_utils::dir_is_empty(tempdir.path()));
         assert_eq!(Ok(false), test_utils::dir_is_empty(gitdir.path()));
-    }
-
-    #[test]
-    fn can_create_and_read_lightweight_tags() {
-        let gitdir = test_utils::test_gitdir().unwrap();
-        let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
-
-        let tag_sha = "0e6cfc8b4209c9ecca33dbd30c41d1d4289736e1".to_owned();
-        git_create_lightweight_tag(&"foo".to_owned(), &tag_sha, &repo).unwrap();
-
-        let tag = git_list_all_tags(&repo).unwrap();
-        let expected = format!("{tag_sha} refs/tags/foo\n");
-        assert_eq!(&expected, tag.first().unwrap());
     }
 }

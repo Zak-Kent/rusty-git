@@ -11,6 +11,7 @@ use crate::cmd_mods::log;
 use crate::cmd_mods::lstree;
 use crate::cmd_mods::checkout;
 use crate::cmd_mods::refs;
+use crate::cmd_mods::tag;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
@@ -105,11 +106,11 @@ fn tag(
         if *add_object {
             return Err(err::Error::GitCreateTagObjectNotImplemented);
         } else {
-            utils::git_create_lightweight_tag(n, object, &repo)?;
+            tag::create_lightweight_tag(n, object, &repo)?;
             return Ok(None);
         }
     } else {
-        return Ok(Some(utils::git_list_all_tags(&repo)?.concat()));
+        return Ok(Some(tag::list_all_tags(&repo)?.concat()));
     }
 }
 
