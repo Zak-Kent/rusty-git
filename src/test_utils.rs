@@ -6,7 +6,7 @@ use tempfile::{tempdir, TempDir};
 use crate::error as err;
 use crate::object_parsers as objp;
 use crate::objects as obj;
-use crate::utils;
+use crate::cmd_mods::init as init;
 
 #[allow(dead_code)]
 pub fn dir_is_empty(path: &Path) -> Result<bool, err::Error> {
@@ -22,7 +22,7 @@ pub fn test_tempdir() -> Result<TempDir, Error> {
 #[allow(dead_code)]
 pub fn test_gitdir() -> Result<TempDir, err::Error> {
     let dir = test_tempdir()?;
-    utils::create_git_repo(dir.path())?;
+    init::create_git_repo(dir.path())?;
     return Ok(dir);
 }
 

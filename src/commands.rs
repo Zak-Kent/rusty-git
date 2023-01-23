@@ -6,9 +6,18 @@ use crate::object_parsers as objp;
 use crate::objects as obj;
 use crate::utils;
 
+use crate::cmd_mods::init;
+use crate::cmd_mods::log;
+use crate::cmd_mods::lstree;
+use crate::cmd_mods::checkout;
+use crate::cmd_mods::refs;
+use crate::cmd_mods::tag;
+use crate::cmd_mods::status;
+use crate::cmd_mods::add;
+
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
-    return Ok(utils::create_git_repo(&repo_path)?);
+    return Ok(init::create_git_repo(&repo_path)?);
 }
 
 fn hash_object(
@@ -47,8 +56,8 @@ fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
         "HEAD" => utils::git_sha_from_head(&repo)?,
         _ => sha,
     };
-    let commit_log = utils::git_follow_commits_to_root(&target_commit, &repo)?;
-    let output = utils::git_commit_log_to_string(commit_log)?;
+    let commit_log = log::follow_commits_to_root(&target_commit, &repo)?;
+    let output = log::commit_log_to_string(commit_log)?;
     return Ok(Some(output));
 }
 
@@ -58,13 +67,13 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
         return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
     } else {
         let tree = objp::parse_git_tree(&contents)?;
-        let output = utils::git_tree_to_string(tree);
+        let output = lstree::git_tree_to_string(tree);
         return Ok(Some(output));
     }
 }
 
 fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    utils::dir_ok_for_checkout(dir)?;
+    checkout::dir_ok_for_checkout(dir)?;
 
     let obj::GitObject {
         obj, contents, sha, ..
@@ -72,11 +81,11 @@ fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, er
     match obj {
         obj::GitObjTyp::Commit => {
             let tree = utils::git_get_tree_from_commit(&sha, &contents, &repo)?;
-            utils::git_checkout_tree(tree, dir, &repo)?;
+            checkout::checkout_tree(tree, dir, &repo)?;
         }
         obj::GitObjTyp::Tree => {
             let tree = objp::parse_git_tree(&contents)?;
-            utils::git_checkout_tree(tree, dir, &repo)?;
+            checkout::checkout_tree(tree, dir, &repo)?;
         }
         _ => return Err(err::Error::GitCheckoutWrongObjType(format!("{:?}", obj))),
     };
@@ -85,7 +94,7 @@ fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, er
 }
 
 fn show_ref(repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let refs = utils::git_gather_refs(None, &repo)?.concat();
+    let refs = refs::gather_refs(None, &repo)?.concat();
     return Ok(Some(refs));
 }
 
@@ -99,11 +108,11 @@ fn tag(
         if *add_object {
             return Err(err::Error::GitCreateTagObjectNotImplemented);
         } else {
-            utils::git_create_lightweight_tag(n, object, &repo)?;
+            tag::create_lightweight_tag(n, object, &repo)?;
             return Ok(None);
         }
     } else {
-        return Ok(Some(utils::git_list_all_tags(&repo)?.concat()));
+        return Ok(Some(tag::list_all_tags(&repo)?.concat()));
     }
 }
 
@@ -119,7 +128,7 @@ pub fn ls_files(repo: obj::Repo) -> Result<Option<String>, err::Error> {
 }
 
 pub fn status(repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let status = utils::git_status(&repo)?;
+    let status = status::status(&repo)?;
     return Ok(Some(status));
 }
 
@@ -133,12 +142,12 @@ pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Er
     let index_exists = utils::git_index_exists(&repo);
     if index_exists {
         let _file_exists = utils::build_path(repo.worktree.clone(), &file_name)?;
-        utils::git_update_index(&repo, &file_name)?;
+        add::update_index(&repo, &file_name)?;
     } else {
         // index doesn't exist yet and must be created
-        let entry = utils::git_file_to_index_entry(&file_name, &repo)?;
+        let entry = add::file_to_index_entry(&file_name, &repo)?;
         let index = objp::Index::new(entry)?;
-        utils::git_write_index(index, &repo)?;
+        add::write_index(index, &repo)?;
     }
     return Ok(None);
 }
@@ -247,7 +256,7 @@ mod object_tests {
         let new_file = File::create(repo.worktree.join(new_file_name));
         writeln!(new_file.unwrap(), "{}", "hahaha").unwrap();
 
-        let updated_index = utils::git_add_entry_to_index(&repo, new_file_name).unwrap();
+        let updated_index = add::add_entry_to_index(&repo, new_file_name).unwrap();
         let mut updated_file_names: HashSet<String> = HashSet::new();
         for e in updated_index.entries {
             updated_file_names.insert(e.name);
