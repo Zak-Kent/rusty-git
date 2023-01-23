@@ -5,10 +5,11 @@ use crate::error as err;
 use crate::object_parsers as objp;
 use crate::objects as obj;
 use crate::utils;
+use crate::cmd_mods::init as init;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
-    return Ok(utils::create_git_repo(&repo_path)?);
+    return Ok(init::create_git_repo(&repo_path)?);
 }
 
 fn hash_object(
