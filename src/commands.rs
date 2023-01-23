@@ -12,6 +12,7 @@ use crate::cmd_mods::lstree;
 use crate::cmd_mods::checkout;
 use crate::cmd_mods::refs;
 use crate::cmd_mods::tag;
+use crate::cmd_mods::status;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
@@ -126,7 +127,7 @@ pub fn ls_files(repo: obj::Repo) -> Result<Option<String>, err::Error> {
 }
 
 pub fn status(repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let status = utils::git_status(&repo)?;
+    let status = status::status(&repo)?;
     return Ok(Some(status));
 }
 
