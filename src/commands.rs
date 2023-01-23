@@ -10,6 +10,7 @@ use crate::cmd_mods::init;
 use crate::cmd_mods::log;
 use crate::cmd_mods::lstree;
 use crate::cmd_mods::checkout;
+use crate::cmd_mods::refs;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
@@ -90,7 +91,7 @@ fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, er
 }
 
 fn show_ref(repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let refs = utils::git_gather_refs(None, &repo)?.concat();
+    let refs = refs::gather_refs(None, &repo)?.concat();
     return Ok(Some(refs));
 }
 

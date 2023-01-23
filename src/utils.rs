@@ -11,6 +11,8 @@ use crate::error as err;
 use crate::object_parsers::{self as objp, NameSha, ToBinary};
 use crate::objects as obj;
 
+use crate::cmd_mods::refs;
+
 // ----------- git utils ---------------
 pub fn is_git_repo(path: &Path) -> bool {
     let gitdir = path.join(".git");
@@ -73,49 +75,9 @@ pub fn git_get_tree_from_commit(
     return Ok(tree);
 }
 
-pub fn git_resolve_ref(ref_path: &Path, repo: &obj::Repo) -> Result<String, err::Error> {
-    let data = read_to_string(repo.gitdir.join(ref_path))?;
-    if "ref: " == &data[..5] {
-        git_resolve_ref(&PathBuf::from(data[5..].trim()), repo)
-    } else {
-        return Ok(data.trim().to_owned());
-    }
-}
-
-pub fn git_gather_refs(path: Option<&Path>, repo: &obj::Repo) -> Result<Vec<String>, err::Error> {
-    let refs_dir_path = if path == None {
-        repo.gitdir.join("refs/")
-    } else {
-        path.unwrap().to_path_buf()
-    };
-
-    let mut all_refs: Vec<String> = Vec::new();
-    let refs_dir = read_dir(refs_dir_path)?;
-
-    for rf in refs_dir {
-        let rfs_path = &rf?.path();
-        let ref_md = metadata(rfs_path)?;
-
-        if ref_md.is_dir() {
-            let mut nested_refs = git_gather_refs(Some(rfs_path), repo)?;
-            all_refs.append(&mut nested_refs);
-        } else {
-            // git_resolve_ref expects paths relative to .git/
-            let clean_rf_path = rfs_path.strip_prefix(&repo.gitdir)?.to_owned();
-            let resolved_ref = git_resolve_ref(&clean_rf_path, repo)?;
-            if let Some(clean_path) = clean_rf_path.to_str() {
-                all_refs.push(format!("{resolved_ref} {clean_path}\n"));
-            } else {
-                return Err(err::Error::PathToUtf8Conversion);
-            };
-        }
-    }
-    return Ok(all_refs);
-}
-
 pub fn git_list_all_tags(repo: &obj::Repo) -> Result<Vec<String>, err::Error> {
     let tags_path = repo.gitdir.join("refs/tags/");
-    let tags = git_gather_refs(Some(&tags_path), &repo)?;
+    let tags = refs::gather_refs(Some(&tags_path), &repo)?;
     return Ok(tags);
 }
 
@@ -497,24 +459,6 @@ mod utils_tests {
         let gitdir = test_utils::test_gitdir().unwrap();
         assert_eq!(Ok(true), test_utils::dir_is_empty(tempdir.path()));
         assert_eq!(Ok(false), test_utils::dir_is_empty(gitdir.path()));
-    }
-
-    #[test]
-    fn resolve_ref_follows_indirect_refs_until_direct_ref() {
-        let gitdir = test_utils::test_gitdir().unwrap();
-
-        let foo_path = gitdir.path().join(".git/refs/heads/foo");
-        let mut foo_ref = File::create(&foo_path).unwrap();
-        writeln!(foo_ref, "ref: refs/heads/bar").unwrap();
-
-        let direct_ref = "123shaABC";
-        let mut bar_ref = File::create(gitdir.path().join(".git/refs/heads/bar")).unwrap();
-        writeln!(bar_ref, "{}", &direct_ref).unwrap();
-
-        let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
-        let resolved_ref = git_resolve_ref(&foo_path, &repo).unwrap();
-
-        assert_eq!(direct_ref, resolved_ref);
     }
 
     #[test]
