@@ -6,6 +6,7 @@ use crate::object_parsers as objp;
 use crate::objects as obj;
 use crate::utils;
 use crate::cmd_mods::init as init;
+use crate::cmd_mods::log as log;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
@@ -48,8 +49,8 @@ fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
         "HEAD" => utils::git_sha_from_head(&repo)?,
         _ => sha,
     };
-    let commit_log = utils::git_follow_commits_to_root(&target_commit, &repo)?;
-    let output = utils::git_commit_log_to_string(commit_log)?;
+    let commit_log = log::follow_commits_to_root(&target_commit, &repo)?;
+    let output = log::commit_log_to_string(commit_log)?;
     return Ok(Some(output));
 }
 
