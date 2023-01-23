@@ -5,8 +5,10 @@ use crate::error as err;
 use crate::object_parsers as objp;
 use crate::objects as obj;
 use crate::utils;
-use crate::cmd_mods::init as init;
-use crate::cmd_mods::log as log;
+
+use crate::cmd_mods::init;
+use crate::cmd_mods::log;
+use crate::cmd_mods::lstree;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
@@ -60,7 +62,7 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
         return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
     } else {
         let tree = objp::parse_git_tree(&contents)?;
-        let output = utils::git_tree_to_string(tree);
+        let output = lstree::git_tree_to_string(tree);
         return Ok(Some(output));
     }
 }
