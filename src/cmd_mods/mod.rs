@@ -5,3 +5,4 @@ pub mod checkout;
 pub mod refs;
 pub mod tag;
 pub mod status;
+pub mod add;
