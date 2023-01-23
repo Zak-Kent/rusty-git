@@ -9,6 +9,7 @@ use crate::utils;
 use crate::cmd_mods::init;
 use crate::cmd_mods::log;
 use crate::cmd_mods::lstree;
+use crate::cmd_mods::checkout;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
@@ -68,7 +69,7 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
 }
 
 fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    utils::dir_ok_for_checkout(dir)?;
+    checkout::dir_ok_for_checkout(dir)?;
 
     let obj::GitObject {
         obj, contents, sha, ..
@@ -76,11 +77,11 @@ fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, er
     match obj {
         obj::GitObjTyp::Commit => {
             let tree = utils::git_get_tree_from_commit(&sha, &contents, &repo)?;
-            utils::git_checkout_tree(tree, dir, &repo)?;
+            checkout::checkout_tree(tree, dir, &repo)?;
         }
         obj::GitObjTyp::Tree => {
             let tree = objp::parse_git_tree(&contents)?;
-            utils::git_checkout_tree(tree, dir, &repo)?;
+            checkout::checkout_tree(tree, dir, &repo)?;
         }
         _ => return Err(err::Error::GitCheckoutWrongObjType(format!("{:?}", obj))),
     };
