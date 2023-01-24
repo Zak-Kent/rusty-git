@@ -98,6 +98,15 @@ pub fn git_check_for_rusty_git_allowed(repo: &obj::Repo) -> Result<bool, err::Er
     }
 }
 
+
+pub fn get_sha_from_binary(input: &[u8]) -> String {
+    let mut hexpairs = Vec::new();
+    for n in input {
+        hexpairs.push(format!("{:02x}", n))
+    }
+    return hexpairs.join("");
+}
+
 // ----------- fs utils ---------------
 pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     path.push(ext);

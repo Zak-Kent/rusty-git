@@ -20,8 +20,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::str::from_utf8;
 
-use crate::error as err;
 use crate::objects as obj;
+use crate::{error as err, utils};
 
 // TODO: figure out a way to make nom errors more specific
 fn generic_nom_failure(input: &[u8]) -> Err<Error<&[u8]>> {
@@ -168,16 +168,8 @@ pub fn parse_git_head(input: &[u8]) -> Result<String, err::Error> {
     return Ok(from_utf8(head_ref)?.to_owned());
 }
 
-fn get_sha_from_binary(input: &[u8]) -> String {
-    let mut hexpairs = Vec::new();
-    for n in input {
-        hexpairs.push(format!("{:02x}", n))
-    }
-    return hexpairs.join("");
-}
-
 // a single entry in a GitObjType::Tree file
-type ParsedLeaf<'a> = (&'a [u8], &'a [u8], String);
+type ParsedLeaf<'a> = (&'a [u8], &'a [u8], &'a [u8]);
 
 pub fn parse_git_tree_leaf(input: &[u8]) -> IResult<&[u8], ParsedLeaf> {
     let (input, mode) = is_not(" ")(input)?;
@@ -185,8 +177,7 @@ pub fn parse_git_tree_leaf(input: &[u8]) -> IResult<&[u8], ParsedLeaf> {
     let (input, path) = take_till1(|c| c == b'\x00')(input)?;
     let (input, _) = tag(b"\x00")(input)?;
     let (input, bsha) = take(20usize)(input)?;
-    let sha = get_sha_from_binary(bsha);
-    return Ok((input, ParsedLeaf::from((mode, path, sha))));
+    return Ok((input, ParsedLeaf::from((mode, path, bsha))));
 }
 
 pub trait NameSha {
@@ -197,15 +188,16 @@ pub trait NameSha {
 pub struct TreeLeaf {
     pub mode: String,
     pub path: String,
-    pub sha: String,
+    pub sha: Vec<u8>,
 }
 
 impl NameSha for TreeLeaf {
     fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String) {
+        let sha = utils::get_sha_from_binary(&self.sha);
         if let Some(prefix) = name_prefix {
-            return (format!("{prefix}/{}", self.path), self.sha.clone());
+            return (format!("{prefix}/{}", self.path), sha);
         } else {
-            return (self.path.clone(), self.sha.clone());
+            return (self.path.clone(), sha);
         }
     }
 }
@@ -223,7 +215,7 @@ pub fn parse_git_tree(input: &[u8]) -> Result<Tree, err::Error> {
         contents.push(TreeLeaf {
             mode: from_utf8(mode)?.to_owned(),
             path: from_utf8(path)?.to_owned(),
-            sha,
+            sha: sha.to_vec(),
         })
     }
 
@@ -264,13 +256,11 @@ impl PartialOrd for IndexEntry {
 
 impl NameSha for IndexEntry {
     fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String) {
+        let sha = utils::get_sha_from_binary(&self.sha);
         if let Some(prefix) = name_prefix {
-            return (
-                format!("{prefix}/{}", self.name),
-                get_sha_from_binary(&self.sha),
-            );
+            return (format!("{prefix}/{}", self.name), sha);
         } else {
-            return (self.name.clone(), get_sha_from_binary(&self.sha));
+            return (self.name.clone(), sha);
         }
     }
 }
@@ -523,15 +513,18 @@ mod object_parsing_tests {
         assert_eq!("refs/heads/main", parse_git_head(head_file).unwrap());
     }
 
+    fn get_sha_bytes(file_name: &str) -> Vec<u8> {
+        let mut hasher = sha1::Sha1::new();
+        hasher.update(file_name.as_bytes());
+        let sha = hasher.digest().to_string();
+        return hex::decode(sha).unwrap();
+    }
+
     fn make_git_tree_leaf(file_name: &str, perms: &str) -> Vec<u8> {
         let file_info = [perms, " ", file_name, "\x00"]
             .map(|s| s.as_bytes())
             .concat();
-
-        let mut hasher = sha1::Sha1::new();
-        hasher.update(file_name.as_bytes());
-        let sha = hasher.digest().to_string();
-        let bsha = hex::decode(sha).unwrap();
+        let bsha = get_sha_bytes(file_name);
 
         let mut leaf: Vec<u8> = Vec::new();
         leaf.extend_from_slice(&file_info);
@@ -541,12 +534,10 @@ mod object_parsing_tests {
 
     #[test]
     fn can_parse_git_tree_leaf() {
-        let leaf = make_git_tree_leaf("src/foo.txt", "100644");
-        let expected_val = ParsedLeaf::from((
-            b"100644",
-            b"src/foo.txt",
-            "73f73b8475d38e918a51739bf0e90dfba405f8af".to_owned(),
-        ));
+        let file_path = "src/foo.txt";
+        let leaf = make_git_tree_leaf(file_path, "100644");
+        let bsha = get_sha_bytes(file_path);
+        let expected_val = ParsedLeaf::from((b"100644", file_path.as_bytes(), &bsha));
         let (leftover, leafvals) = parse_git_tree_leaf(&leaf).unwrap();
         assert_eq!(expected_val, leafvals);
         assert_eq!(0, leftover.len());
@@ -567,17 +558,17 @@ mod object_parsing_tests {
                 TreeLeaf {
                     mode: "100644".to_owned(),
                     path: "src/foo.txt".to_owned(),
-                    sha: "73f73b8475d38e918a51739bf0e90dfba405f8af".to_owned(),
+                    sha: get_sha_bytes("src/foo.txt"),
                 },
                 TreeLeaf {
                     mode: "040000".to_owned(),
                     path: "tests".to_owned(),
-                    sha: "04d13fd0aa6f0197cf2c999019a607c36c81eb9f".to_owned(),
+                    sha: get_sha_bytes("tests"),
                 },
                 TreeLeaf {
                     mode: "100644".to_owned(),
                     path: "src/bar.txt".to_owned(),
-                    sha: "df6a2dfaf9a69ddfc7d325031206f0d1895e1806".to_owned(),
+                    sha: get_sha_bytes("src/bar.txt"),
                 },
             ]),
         };

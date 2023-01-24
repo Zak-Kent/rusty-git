@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
-use std::fs::{metadata, read, read_dir};
 use std::collections::HashSet;
+use std::fs::{metadata, read, read_dir};
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
@@ -28,7 +28,8 @@ fn tree_file_sha_pairs(
     // extra complexity needed to deal with nested git Tree objects
     for elm in tree.contents.iter() {
         if PathBuf::from(&elm.path).is_dir() {
-            let obj::GitObject { obj, contents, .. } = obj::read_object(&elm.sha, &repo)?;
+            let obj::GitObject { obj, contents, .. } =
+                obj::read_object(&utils::get_sha_from_binary(&elm.sha), &repo)?;
             if obj != obj::GitObjTyp::Tree {
                 return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
             } else {
@@ -50,10 +51,7 @@ fn tree_file_sha_pairs(
     return Ok(file_sha_pairs);
 }
 
-fn staged_but_not_commited(
-    repo: &obj::Repo,
-    index: &objp::Index,
-) -> Result<String, err::Error> {
+fn staged_but_not_commited(repo: &obj::Repo, index: &objp::Index) -> Result<String, err::Error> {
     let commit_tree_files_n_shas: HashSet<(String, String)>;
     let head_sha = utils::git_sha_from_head(repo);
 
@@ -71,8 +69,7 @@ fn staged_but_not_commited(
     };
 
     // get set of (name, sha) pairs for each file in the index
-    let index_files_n_shas: HashSet<(String, String)> =
-        index_file_sha_pairs(&index.entries, None);
+    let index_files_n_shas: HashSet<(String, String)> = index_file_sha_pairs(&index.entries, None);
 
     return Ok(format!(
         "{}",

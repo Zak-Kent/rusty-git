@@ -5,6 +5,7 @@ use std::path::Path;
 use crate::error as err;
 use crate::object_parsers as objp;
 use crate::objects as obj;
+use crate::utils;
 
 fn dir_path_to_string(path: &Path) -> Result<String, err::Error> {
     if let Some(dir_name) = path.to_str() {
@@ -28,13 +29,9 @@ pub fn dir_ok_for_checkout(path: &Path) -> Result<bool, err::Error> {
     }
 }
 
-pub fn checkout_tree(
-    tree: objp::Tree,
-    path: &Path,
-    repo: &obj::Repo,
-) -> Result<(), err::Error> {
+pub fn checkout_tree(tree: objp::Tree, path: &Path, repo: &obj::Repo) -> Result<(), err::Error> {
     for leaf in tree.contents {
-        let obj = obj::read_object(&leaf.sha, repo)?;
+        let obj = obj::read_object(&utils::get_sha_from_binary(&leaf.sha), repo)?;
 
         match obj.obj {
             obj::GitObjTyp::Tree => {
