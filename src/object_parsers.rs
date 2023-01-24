@@ -202,9 +202,32 @@ impl NameSha for TreeLeaf {
     }
 }
 
+impl ToBinary for TreeLeaf {
+    fn to_binary(&self) -> Vec<u8> {
+        let file_info = [&self.mode, " ", &self.path, "\x00"]
+            .map(|s| s.as_bytes())
+            .concat();
+        let mut leaf: Vec<u8> = Vec::new();
+        leaf.extend_from_slice(&file_info);
+        leaf.extend_from_slice(&self.sha);
+        return leaf;
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Tree {
     pub contents: Vec<TreeLeaf>,
+}
+
+impl ToBinary for Tree {
+    fn to_binary(&self) -> Vec<u8> {
+        return self
+            .contents
+            .iter()
+            .map(|e| e.to_binary())
+            .collect::<Vec<Vec<u8>>>()
+            .concat();
+    }
 }
 
 pub fn parse_git_tree(input: &[u8]) -> Result<Tree, err::Error> {
@@ -574,6 +597,9 @@ mod object_parsing_tests {
         };
         let tree = parse_git_tree(&tree_file).unwrap();
         assert_eq!(expected_val, tree);
+
+        let round_trip_bytes = tree.to_binary();
+        assert_eq!(tree_file, round_trip_bytes);
     }
 
     #[test]
