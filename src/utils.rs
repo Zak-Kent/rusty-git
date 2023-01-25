@@ -5,7 +5,7 @@ use std::str::from_utf8;
 use crate::error as err;
 use crate::object_parsers as objp;
 use crate::objects as obj;
-use crate::object_mods::tree;
+use crate::object_mods::{tree, commit};
 
 
 // ----------- git utils ---------------
@@ -57,7 +57,7 @@ pub fn git_get_tree_from_commit(
     contents: &[u8],
     repo: &obj::Repo,
 ) -> Result<tree::Tree, err::Error> {
-    let objp::KvsMsg { kvs, .. } = objp::parse_kv_list_msg(contents, sha)?;
+    let commit::KvsMsg { kvs, .. } = commit::parse_kv_list_msg(contents, sha)?;
 
     let tree_sha = match kvs.get("tree".as_bytes()) {
         Some(s) => from_utf8(s)?,

@@ -8,8 +8,8 @@ use std::path::PathBuf;
 use std::str::from_utf8;
 
 use crate::error as err;
-use crate::object_parsers as objp;
 use crate::utils;
+use crate::object_mods as obj;
 
 #[derive(Debug, PartialEq)]
 pub enum GitObjTyp {
@@ -82,7 +82,7 @@ pub fn read_object(sha: &str, repo: &Repo) -> Result<GitObject, err::Error> {
         Err(e) => return Err(err::Error::InflatingGitObj(e)),
     };
 
-    let gitobject = objp::parse_git_obj(&decoded, &obj_path, &sha)?;
+    let gitobject = obj::parse_git_obj(&decoded, &obj_path, &sha)?;
     if gitobject.len != gitobject.contents.len() {
         return Err(err::Error::GitMalformedObject);
     }
