@@ -14,6 +14,7 @@ use std::cmp::Ordering;
 use std::str::from_utf8;
 
 use crate::{error as err, utils};
+use crate::object_mods as obj;
 
 fn nom_many0_err(input: &[u8]) -> Err<Error<&[u8]>> {
     // this error type allows the parser to continue with the input
@@ -24,16 +25,6 @@ fn nom_many0_err(input: &[u8]) -> Err<Error<&[u8]>> {
         input,
         code: ErrorKind::Many0,
     })
-}
-
-pub trait NameSha {
-    fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String);
-}
-
-// ------------- git index file parsers -----------------
-
-pub trait ToBinary {
-    fn to_binary(&self) -> Vec<u8>;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -62,7 +53,7 @@ impl PartialOrd for IndexEntry {
     }
 }
 
-impl NameSha for IndexEntry {
+impl obj::NameSha for IndexEntry {
     fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String) {
         let sha = utils::get_sha_from_binary(&self.sha);
         if let Some(prefix) = name_prefix {
@@ -73,8 +64,8 @@ impl NameSha for IndexEntry {
     }
 }
 
-impl ToBinary for IndexEntry {
-    fn to_binary(&self) -> Vec<u8> {
+impl obj::AsBytes for IndexEntry {
+    fn as_bytes(&self) -> Vec<u8> {
         let c_seconds = self.c_time.timestamp() as u32;
         let c_nanos = self.c_time.timestamp_subsec_nanos();
         let m_seconds = self.m_time.timestamp() as u32;
@@ -178,8 +169,8 @@ impl Index {
     }
 }
 
-impl ToBinary for Index {
-    fn to_binary(&self) -> Vec<u8> {
+impl obj::AsBytes for Index {
+    fn as_bytes(&self) -> Vec<u8> {
         let header = [
             "DIRC".as_bytes(),
             &[0x00, 0x00, 0x00, 0x02].to_vec(),
@@ -190,7 +181,7 @@ impl ToBinary for Index {
         let entries: Vec<u8> = self
             .entries
             .iter()
-            .map(|i| i.to_binary())
+            .map(|i| i.as_bytes())
             .collect::<Vec<Vec<u8>>>()
             .concat();
 
@@ -227,6 +218,7 @@ pub fn parse_git_index(input: &[u8]) -> Result<Index, err::Error> {
 mod object_parsing_tests {
     use super::*;
     use crate::test_utils;
+    use crate::object_mods::AsBytes;
 
     #[test]
     fn can_parse_index_entry() {
@@ -263,7 +255,7 @@ mod object_parsing_tests {
         assert_eq!(expected, result);
         assert_eq!(0, input.len());
 
-        let round_trip_bytes = result.to_binary();
+        let round_trip_bytes = result.as_bytes();
         assert_eq!(entry.to_vec(), round_trip_bytes);
     }
 
@@ -287,7 +279,7 @@ mod object_parsing_tests {
         let file_names: Vec<String> = parsed_index.entries.into_iter().map(|e| e.name).collect();
         assert_eq!(expected, file_names);
 
-        let round_trip_bytes = parsed_index_clone.to_binary();
+        let round_trip_bytes = parsed_index_clone.as_bytes();
         assert_eq!(index.to_vec(), round_trip_bytes);
     }
 

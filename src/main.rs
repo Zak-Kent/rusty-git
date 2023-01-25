@@ -4,7 +4,7 @@ use std::process;
 mod cli;
 mod commands;
 mod error;
-mod object_parsers;
+mod index;
 mod objects;
 mod test_utils;
 mod utils;

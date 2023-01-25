@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::cli;
 use crate::error as err;
-use crate::object_parsers as objp;
+use crate::index as idx;
 use crate::objects as obj;
 use crate::utils;
 use crate::cmd_mods::{init, log, lstree, checkout, refs, tag, status, add};
@@ -111,7 +111,7 @@ fn tag(
 
 pub fn ls_files(repo: obj::Repo) -> Result<Option<String>, err::Error> {
     let index_contents = utils::git_read_index(&repo)?;
-    let index = objp::parse_git_index(&index_contents)?;
+    let index = idx::parse_git_index(&index_contents)?;
     let file_names: Vec<String> = index
         .entries
         .into_iter()
@@ -139,7 +139,7 @@ pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Er
     } else {
         // index doesn't exist yet and must be created
         let entry = add::file_to_index_entry(&file_name, &repo)?;
-        let index = objp::Index::new(entry)?;
+        let index = idx::Index::new(entry)?;
         add::write_index(index, &repo)?;
     }
     return Ok(None);
@@ -239,7 +239,7 @@ mod object_tests {
         let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
 
         let starting_index = read(gitdir.path().join(".git/index")).unwrap();
-        let parsed_starting_index = objp::parse_git_index(&starting_index).unwrap();
+        let parsed_starting_index = idx::parse_git_index(&starting_index).unwrap();
         let mut starting_file_names: HashSet<String> = HashSet::new();
         for e in parsed_starting_index.entries {
             starting_file_names.insert(e.name);
@@ -302,7 +302,7 @@ mod object_tests {
         run_cmd(&add_cmd, false).unwrap();
 
         let index = read(gitdir.path().join(".git/index")).unwrap();
-        let parsed_index = objp::parse_git_index(&index).unwrap();
+        let parsed_index = idx::parse_git_index(&index).unwrap();
         assert_eq!(1, parsed_index.entries.len());
         assert_eq!(
             new_file_full_path.to_str().unwrap(),

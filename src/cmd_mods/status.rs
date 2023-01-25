@@ -5,12 +5,12 @@ use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
 use crate::error as err;
-use crate::object_parsers as objp;
+use crate::index as idx;
 use crate::objects as obj;
 use crate::utils;
-use crate::object_mods::{tree, NameSha};
+use crate::object_mods::{self as objm, tree, NameSha};
 
-fn index_file_sha_pairs<T: objp::NameSha>(
+fn index_file_sha_pairs<T: objm::NameSha>(
     input: &Vec<T>,
     name_prefix: Option<String>,
 ) -> HashSet<(String, String)> {
@@ -52,7 +52,7 @@ fn tree_file_sha_pairs(
     return Ok(file_sha_pairs);
 }
 
-fn staged_but_not_commited(repo: &obj::Repo, index: &objp::Index) -> Result<String, err::Error> {
+fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<String, err::Error> {
     let commit_tree_files_n_shas: HashSet<(String, String)>;
     let head_sha = utils::git_sha_from_head(repo);
 
@@ -155,12 +155,12 @@ struct LocalChanges {
 
 fn local_changes_not_staged_for_commit_or_untracked(
     repo: &obj::Repo,
-    index: &objp::Index,
+    index: &idx::Index,
 ) -> Result<LocalChanges, err::Error> {
     let names_mtimes = index
         .entries
         .iter()
-        .map(|objp::IndexEntry { name, m_time, .. }| (name.to_owned(), m_time.to_owned()));
+        .map(|idx::IndexEntry { name, m_time, .. }| (name.to_owned(), m_time.to_owned()));
 
     let idx_name_mtime_pairs: HashSet<(String, DateTime<Utc>)> = HashSet::from_iter(names_mtimes);
     let worktree_name_mtime_pairs = gather_mtime_from_worktree(None, repo)?;
@@ -198,7 +198,7 @@ pub fn status(repo: &obj::Repo) -> Result<String, err::Error> {
     }
 
     let idx = utils::git_read_index(repo)?;
-    let index = objp::parse_git_index(&idx)?;
+    let index = idx::parse_git_index(&idx)?;
 
     let staged = staged_but_not_commited(repo, &index)?;
     let LocalChanges {
