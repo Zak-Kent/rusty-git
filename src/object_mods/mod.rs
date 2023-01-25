@@ -1,7 +1,10 @@
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_till1},
-    character::complete::space1,
+    bytes::complete::{is_not, tag, take_till1},
+    character::{
+        complete::space1,
+        is_newline,
+    },
     error::{Error, ErrorKind},
     Err, IResult,
 };
@@ -27,6 +30,13 @@ fn generic_nom_failure(input: &[u8]) -> Err<Error<&[u8]>> {
         input,
         code: ErrorKind::Fail,
     })
+}
+
+pub fn parse_git_head(input: &[u8]) -> Result<String, err::Error> {
+    let (input, _key) = is_not(" ")(input)?;
+    let (input, _) = space1(input)?;
+    let (_, head_ref) = take_till1(is_newline)(input)?;
+    return Ok(from_utf8(head_ref)?.to_owned());
 }
 
 fn parse_obj_type<'a>(input: &'a [u8]) -> IResult<&'a [u8], obj::GitObjTyp> {
@@ -76,6 +86,12 @@ pub fn parse_git_obj<'a>(
 mod object_mod_tests {
     use super::*;
     use crate::test_utils;
+
+    #[test]
+    fn can_parse_git_head() {
+        let head_file = "ref: refs/heads/main".as_bytes();
+        assert_eq!("refs/heads/main", parse_git_head(head_file).unwrap());
+    }
 
     #[test]
     fn can_parse_git_object() {

@@ -1,10 +1,6 @@
 use chrono::{DateTime, TimeZone, Utc};
 use nom::{
-    bytes::complete::{is_a, is_not, take, take_till1},
-    character::{
-        complete::space1,
-        is_newline,
-    },
+    bytes::complete::{is_a, take},
     error::{Error, ErrorKind},
     multi::many0,
     number::{
@@ -28,13 +24,6 @@ fn nom_many0_err(input: &[u8]) -> Err<Error<&[u8]>> {
         input,
         code: ErrorKind::Many0,
     })
-}
-
-pub fn parse_git_head(input: &[u8]) -> Result<String, err::Error> {
-    let (input, _key) = is_not(" ")(input)?;
-    let (input, _) = space1(input)?;
-    let (_, head_ref) = take_till1(is_newline)(input)?;
-    return Ok(from_utf8(head_ref)?.to_owned());
 }
 
 pub trait NameSha {
@@ -238,12 +227,6 @@ pub fn parse_git_index(input: &[u8]) -> Result<Index, err::Error> {
 mod object_parsing_tests {
     use super::*;
     use crate::test_utils;
-
-    #[test]
-    fn can_parse_git_head() {
-        let head_file = "ref: refs/heads/main".as_bytes();
-        assert_eq!("refs/heads/main", parse_git_head(head_file).unwrap());
-    }
 
     #[test]
     fn can_parse_index_entry() {
