@@ -5,9 +5,10 @@ use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
 use crate::error as err;
-use crate::object_parsers::{self as objp, NameSha};
+use crate::object_parsers as objp;
 use crate::objects as obj;
 use crate::utils;
+use crate::object_mods::{tree, NameSha};
 
 fn index_file_sha_pairs<T: objp::NameSha>(
     input: &Vec<T>,
@@ -20,7 +21,7 @@ fn index_file_sha_pairs<T: objp::NameSha>(
 }
 
 fn tree_file_sha_pairs(
-    tree: objp::Tree,
+    tree: tree::Tree,
     name_prefix: Option<String>,
     repo: &obj::Repo,
 ) -> Result<HashSet<(String, String)>, err::Error> {
@@ -39,7 +40,7 @@ fn tree_file_sha_pairs(
                 } else {
                     nested_name_prefix = Some(elm.path.clone());
                 }
-                let tree = objp::parse_git_tree(&contents)?;
+                let tree = tree::parse_git_tree(&contents)?;
                 let inner_tree_file_sha_pairs =
                     tree_file_sha_pairs(tree, nested_name_prefix, repo)?;
                 file_sha_pairs.extend(inner_tree_file_sha_pairs);

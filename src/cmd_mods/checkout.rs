@@ -3,9 +3,9 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::error as err;
-use crate::object_parsers as objp;
 use crate::objects as obj;
 use crate::utils;
+use crate::object_mods::tree;
 
 fn dir_path_to_string(path: &Path) -> Result<String, err::Error> {
     if let Some(dir_name) = path.to_str() {
@@ -29,13 +29,13 @@ pub fn dir_ok_for_checkout(path: &Path) -> Result<bool, err::Error> {
     }
 }
 
-pub fn checkout_tree(tree: objp::Tree, path: &Path, repo: &obj::Repo) -> Result<(), err::Error> {
+pub fn checkout_tree(tree: tree::Tree, path: &Path, repo: &obj::Repo) -> Result<(), err::Error> {
     for leaf in tree.contents {
         let obj = obj::read_object(&utils::get_sha_from_binary(&leaf.sha), repo)?;
 
         match obj.obj {
             obj::GitObjTyp::Tree => {
-                let sub_tree = objp::parse_git_tree(&obj.contents)?;
+                let sub_tree = tree::parse_git_tree(&obj.contents)?;
                 let dir_path = path.join(&leaf.path);
                 let dst = repo.worktree.join(&dir_path);
                 create_dir(dst)?;

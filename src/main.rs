@@ -9,6 +9,7 @@ mod objects;
 mod test_utils;
 mod utils;
 mod cmd_mods;
+mod object_mods;
 
 use crate::commands as cmd;
 use crate::error as err;

@@ -5,15 +5,8 @@ use crate::error as err;
 use crate::object_parsers as objp;
 use crate::objects as obj;
 use crate::utils;
-
-use crate::cmd_mods::init;
-use crate::cmd_mods::log;
-use crate::cmd_mods::lstree;
-use crate::cmd_mods::checkout;
-use crate::cmd_mods::refs;
-use crate::cmd_mods::tag;
-use crate::cmd_mods::status;
-use crate::cmd_mods::add;
+use crate::cmd_mods::{init, log, lstree, checkout, refs, tag, status, add};
+use crate::object_mods::{tree};
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
@@ -66,7 +59,7 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     if obj != obj::GitObjTyp::Tree {
         return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
     } else {
-        let tree = objp::parse_git_tree(&contents)?;
+        let tree = tree::parse_git_tree(&contents)?;
         let output = lstree::git_tree_to_string(tree);
         return Ok(Some(output));
     }
@@ -84,7 +77,7 @@ fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, er
             checkout::checkout_tree(tree, dir, &repo)?;
         }
         obj::GitObjTyp::Tree => {
-            let tree = objp::parse_git_tree(&contents)?;
+            let tree = tree::parse_git_tree(&contents)?;
             checkout::checkout_tree(tree, dir, &repo)?;
         }
         _ => return Err(err::Error::GitCheckoutWrongObjType(format!("{:?}", obj))),
