@@ -1,15 +1,12 @@
 use deflate::write::ZlibEncoder;
 use deflate::Compression;
-use inflate::inflate_bytes_zlib;
 use sha1_smol as sha1;
 use std::fs::{self, create_dir, read, File};
 use std::io::Write;
 use std::path::PathBuf;
-use std::str::from_utf8;
 
 use crate::error as err;
 use crate::utils;
-use crate::object_mods as obj;
 
 #[derive(Debug, PartialEq)]
 pub enum GitObjTyp {
@@ -73,27 +70,6 @@ pub fn find_gitdir_and_create_repo(path: String) -> Result<Repo, err::Error> {
     return Ok(Repo::new(path)?);
 }
 
-pub fn read_object(sha: &str, repo: &Repo) -> Result<GitObject, err::Error> {
-    let obj_path = utils::git_obj_path_from_sha(sha, &repo)?;
-    let contents = read(&obj_path)?;
-
-    let decoded = match inflate_bytes_zlib(&contents) {
-        Ok(res) => res,
-        Err(e) => return Err(err::Error::InflatingGitObj(e)),
-    };
-
-    let gitobject = obj::parse_git_obj(&decoded, &obj_path, &sha)?;
-    if gitobject.len != gitobject.contents.len() {
-        return Err(err::Error::GitMalformedObject);
-    }
-    return Ok(gitobject);
-}
-
-pub fn read_object_as_string(sha: &str, repo: &Repo) -> Result<String, err::Error> {
-    let gitobject = read_object(sha, &repo)?;
-    return Ok(from_utf8(&gitobject.contents)?.to_owned());
-}
-
 pub fn write_object(src: SourceFile, repo: Option<&Repo>) -> Result<sha1::Digest, err::Error> {
     let path = match src {
         SourceFile {
@@ -151,6 +127,7 @@ mod object_tests {
     use super::*;
     use crate::test_utils;
     use crate::utils;
+    use crate::object_mods as objm;
 
     #[test]
     fn git_repo_setup_test() {
@@ -232,7 +209,7 @@ mod object_tests {
                 .join(format!(".git/objects/{}/{}", &hash[..2], &hash[2..]));
         assert_eq!(22, utils::content_length(&git_obj_path)?);
 
-        let obj_contents = read_object_as_string(&hash, &repo)?;
+        let obj_contents = objm::read_object_as_string(&hash, &repo)?;
         assert_eq!("foobar\n", obj_contents);
 
         Ok(())

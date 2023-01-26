@@ -6,9 +6,9 @@ use std::str::from_utf8;
 
 use crate::error as err;
 use crate::index as idx;
+use crate::object_mods::{self as objm, tree, NameSha};
 use crate::objects as obj;
 use crate::utils;
-use crate::object_mods::{self as objm, tree, NameSha};
 
 fn index_file_sha_pairs<T: objm::NameSha>(
     input: &Vec<T>,
@@ -29,21 +29,20 @@ fn tree_file_sha_pairs(
     // extra complexity needed to deal with nested git Tree objects
     for elm in tree.contents.iter() {
         if PathBuf::from(&elm.path).is_dir() {
-            let obj::GitObject { obj, contents, .. } =
-                obj::read_object(&utils::get_sha_from_binary(&elm.sha), &repo)?;
-            if obj != obj::GitObjTyp::Tree {
-                return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
-            } else {
-                let nested_name_prefix: Option<String>;
-                if let Some(ref nnp) = name_prefix {
-                    nested_name_prefix = Some(format!("{}/{}", nnp, elm.path));
-                } else {
-                    nested_name_prefix = Some(elm.path.clone());
+            let obj = objm::read_object(&utils::get_sha_from_binary(&elm.sha), repo)?;
+            match obj {
+                objm::GitObj::Tree(inner_tree) => {
+                    let nested_name_prefix: Option<String>;
+                    if let Some(ref nnp) = name_prefix {
+                        nested_name_prefix = Some(format!("{}/{}", nnp, elm.path));
+                    } else {
+                        nested_name_prefix = Some(elm.path.clone());
+                    }
+                    let inner_tree_file_sha_pairs =
+                        tree_file_sha_pairs(inner_tree, nested_name_prefix, repo)?;
+                    file_sha_pairs.extend(inner_tree_file_sha_pairs);
                 }
-                let tree = tree::parse_git_tree(&contents)?;
-                let inner_tree_file_sha_pairs =
-                    tree_file_sha_pairs(tree, nested_name_prefix, repo)?;
-                file_sha_pairs.extend(inner_tree_file_sha_pairs);
+                _ => return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj))),
             }
         } else {
             file_sha_pairs.insert(elm.get_name_and_sha(name_prefix.clone()));
@@ -58,9 +57,15 @@ fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<Strin
 
     if let Ok(hsha) = head_sha {
         // get a set of (name, sha) pairs for each file in the last commit object
-        let obj::GitObject { contents, sha, .. } = obj::read_object(&hsha, &repo)?;
-        let commit_tree = utils::git_get_tree_from_commit(&sha, &contents, &repo)?;
-        commit_tree_files_n_shas = tree_file_sha_pairs(commit_tree, None, repo)?;
+        if let objm::GitObj::Commit(commit) = objm::read_object(&hsha, repo)? {
+            let commit_tree = utils::git_get_tree_from_commit(commit, &repo)?;
+            commit_tree_files_n_shas = tree_file_sha_pairs(commit_tree, None, repo)?;
+        } else {
+            return Err(err::Error::GitUnexpectedInternalType(format!(
+                "{:?}",
+                "Expected a commit object"
+            )));
+        }
     } else {
         // This error happens when no commits exist yet and you try to look
         // them up from HEAD. This can happen when running status before

@@ -52,21 +52,19 @@ pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
 }
 
 pub fn git_get_tree_from_commit(
-    sha: &str,
-    contents: &[u8],
+    commit: commit::KvsMsg,
     repo: &obj::Repo,
 ) -> Result<tree::Tree, err::Error> {
-    let commit::KvsMsg { kvs, .. } = commit::parse_kv_list_msg(contents, sha)?;
-
-    let tree_sha = match kvs.get("tree".as_bytes()) {
+    let tree_sha = match commit.kvs.get("tree".as_bytes()) {
         Some(s) => from_utf8(s)?,
         None => return Err(err::Error::GitNoTreeKeyInCommit),
     };
 
-    let obj::GitObject { contents, .. } = obj::read_object(tree_sha, repo)?;
-    let tree = tree::parse_git_tree(&contents)?;
-
-    return Ok(tree);
+    if let objm::GitObj::Tree(tree) = objm::read_object(tree_sha, repo)? {
+        return Ok(tree);
+    } else {
+        return Err(err::Error::GitCheckoutWrongObjType(format!("{}", "not a tree obj")));
+    }
 }
 
 pub fn git_read_index(repo: &obj::Repo) -> Result<Vec<u8>, err::Error> {

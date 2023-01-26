@@ -1,12 +1,12 @@
 use std::path::{Path, PathBuf};
 
 use crate::cli;
+use crate::cmd_mods::{add, checkout, init, log, lstree, refs, status, tag};
 use crate::error as err;
 use crate::index as idx;
+use crate::object_mods as objm;
 use crate::objects as obj;
 use crate::utils;
-use crate::cmd_mods::{init, log, lstree, checkout, refs, tag, status, add};
-use crate::object_mods::{tree};
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
@@ -40,7 +40,7 @@ fn hash_object(
 // where this version only needs the sha and then reads the obj type from
 // the compressed file stored at the sha's location
 fn cat_file(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let file_contents = obj::read_object_as_string(&sha, &repo)?;
+    let file_contents = objm::read_object_as_string(&sha, &repo)?;
     return Ok(Some(file_contents));
 }
 
@@ -55,34 +55,29 @@ fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
 }
 
 fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let obj::GitObject { obj, contents, .. } = obj::read_object(&sha, &repo)?;
-    if obj != obj::GitObjTyp::Tree {
-        return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
-    } else {
-        let tree = tree::parse_git_tree(&contents)?;
+    let obj = objm::read_object(&sha, &repo)?;
+
+    if let objm::GitObj::Tree(tree) = obj {
         let output = lstree::git_tree_to_string(tree);
         return Ok(Some(output));
+    } else {
+        return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
     }
 }
 
 fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     checkout::dir_ok_for_checkout(dir)?;
-
-    let obj::GitObject {
-        obj, contents, sha, ..
-    } = obj::read_object(&sha, &repo)?;
+    let obj = objm::read_object(&sha, &repo)?;
     match obj {
-        obj::GitObjTyp::Commit => {
-            let tree = utils::git_get_tree_from_commit(&sha, &contents, &repo)?;
+        objm::GitObj::Tree(tree) => {
             checkout::checkout_tree(tree, dir, &repo)?;
         }
-        obj::GitObjTyp::Tree => {
-            let tree = tree::parse_git_tree(&contents)?;
+        objm::GitObj::Commit(commit) => {
+            let tree = utils::git_get_tree_from_commit(commit, &repo)?;
             checkout::checkout_tree(tree, dir, &repo)?;
         }
         _ => return Err(err::Error::GitCheckoutWrongObjType(format!("{:?}", obj))),
-    };
-
+    }
     return Ok(None);
 }
 
@@ -309,11 +304,7 @@ mod object_tests {
             parsed_index.entries.first().unwrap().name.as_str()
         );
 
-        let git_objects = gitdir
-            .path()
-            .join(".git/objects")
-            .read_dir()
-            .unwrap();
+        let git_objects = gitdir.path().join(".git/objects").read_dir().unwrap();
         assert_eq!(1, git_objects.count());
     }
 }

@@ -1,13 +1,18 @@
 use std::str::from_utf8;
 
 use crate::error as err;
+use crate::object_mods::{self as objm, commit};
 use crate::objects as obj;
-use crate::object_mods::commit;
 
 pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<commit::KvsMsg, err::Error> {
-    let commit = obj::read_object(sha, repo)?;
-    let parsed_commit = commit::parse_kv_list_msg(&commit.contents, sha)?;
-    return Ok(parsed_commit);
+    if let objm::GitObj::Commit(commit) = objm::read_object(sha, repo)? {
+        return Ok(commit);
+    } else {
+        return Err(err::Error::GitUnexpectedInternalType(format!(
+            "{:?}",
+            "Expected a commit object"
+        )));
+    }
 }
 
 pub fn commit_to_string(commit: &commit::KvsMsg) -> Result<String, err::Error> {

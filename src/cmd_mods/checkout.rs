@@ -3,9 +3,9 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::error as err;
+use crate::object_mods::{self as objm, tree};
 use crate::objects as obj;
 use crate::utils;
-use crate::object_mods::tree;
 
 fn dir_path_to_string(path: &Path) -> Result<String, err::Error> {
     if let Some(dir_name) = path.to_str() {
@@ -31,20 +31,18 @@ pub fn dir_ok_for_checkout(path: &Path) -> Result<bool, err::Error> {
 
 pub fn checkout_tree(tree: tree::Tree, path: &Path, repo: &obj::Repo) -> Result<(), err::Error> {
     for leaf in tree.contents {
-        let obj = obj::read_object(&utils::get_sha_from_binary(&leaf.sha), repo)?;
-
-        match obj.obj {
-            obj::GitObjTyp::Tree => {
-                let sub_tree = tree::parse_git_tree(&obj.contents)?;
+        let obj = objm::read_object(&utils::get_sha_from_binary(&leaf.sha), &repo)?;
+        match obj {
+            objm::GitObj::Tree(sub_tree) => {
                 let dir_path = path.join(&leaf.path);
                 let dst = repo.worktree.join(&dir_path);
                 create_dir(dst)?;
                 checkout_tree(sub_tree, &dir_path, repo)?;
             }
-            obj::GitObjTyp::Blob => {
+            objm::GitObj::Blob(blob) => {
                 let dst = repo.worktree.join(path).join(&leaf.path);
                 let mut dstfile = File::create(dst)?;
-                dstfile.write_all(&obj.contents)?;
+                dstfile.write_all(&blob.contents)?;
             }
             _ => return Err(err::Error::GitTreeInvalidObject),
         }

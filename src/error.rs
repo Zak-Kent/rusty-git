@@ -25,6 +25,8 @@ pub enum Error {
     GitCreateTagObjectNotImplemented,
     #[error("Unrecognized git index version: {0}, this tool only supports version 2")]
     GitUnrecognizedIndexVersion(u32),
+    #[error("Unexpected internal type found: {0}")]
+    GitUnexpectedInternalType(String),
 
     // program errors not related to git
     #[error("Path doesn't exist: {0}")]

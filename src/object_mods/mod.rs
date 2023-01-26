@@ -1,19 +1,19 @@
+use inflate::inflate_bytes_zlib;
 use nom::{
     branch::alt,
     bytes::complete::{is_not, tag, take_till1},
-    character::{
-        complete::space1,
-        is_newline,
-    },
+    character::{complete::space1, is_newline},
     error::{Error, ErrorKind},
     Err, IResult,
 };
-use std::path::PathBuf;
+use std::fs::read;
 use std::str::from_utf8;
 
 use crate::error as err;
 use crate::objects as obj;
+use crate::utils;
 
+pub mod blob;
 pub mod commit;
 pub mod tree;
 
@@ -66,20 +66,44 @@ fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
     return Ok((input, output));
 }
 
-pub fn parse_git_obj<'a>(
-    input: &'a [u8],
-    path: &'a PathBuf,
-    sha: &'a str,
-) -> Result<obj::GitObject, err::Error> {
+#[derive(Debug, PartialEq)]
+pub enum GitObj {
+    Blob(blob::Blob),
+    Tree(tree::Tree),
+    Commit(commit::KvsMsg),
+}
+
+pub fn parse_git_obj<'a>(input: &'a [u8], sha: &'a str) -> Result<GitObj, err::Error> {
     let (input, obj) = parse_obj_type(input)?;
     let (contents, len) = parse_obj_len(input)?;
-    return Ok(obj::GitObject {
-        obj,
-        len,
-        contents: contents.to_vec(),
-        source: path.to_path_buf(),
-        sha: sha.to_owned(),
-    });
+    if len != contents.len() {
+        return Err(err::Error::GitMalformedObject);
+    }
+    match obj {
+        obj::GitObjTyp::Blob => Ok(GitObj::Blob(blob::Blob::new(contents))),
+        obj::GitObjTyp::Tree => Ok(GitObj::Tree(tree::parse_git_tree(contents)?)),
+        obj::GitObjTyp::Commit => Ok(GitObj::Commit(commit::parse_kv_list_msg(contents, sha)?)),
+    }
+}
+
+pub fn read_object(sha: &str, repo: &obj::Repo) -> Result<GitObj, err::Error> {
+    let obj_path = utils::git_obj_path_from_sha(sha, &repo)?;
+    let contents = read(&obj_path)?;
+    let decoded = match inflate_bytes_zlib(&contents) {
+        Ok(res) => res,
+        Err(e) => return Err(err::Error::InflatingGitObj(e)),
+    };
+    return Ok(parse_git_obj(&decoded, &sha)?);
+}
+
+pub fn read_object_as_string(sha: &str, repo: &obj::Repo) -> Result<String, err::Error> {
+    let gitobject = read_object(sha, &repo)?;
+    let obj_bytes = match gitobject {
+        GitObj::Blob(blob) => blob.as_bytes(),
+        GitObj::Tree(tree) => tree.as_bytes(),
+        GitObj::Commit(commit) => commit.as_bytes(),
+    };
+    return Ok(from_utf8(&obj_bytes)?.to_owned());
 }
 
 #[cfg(test)]
@@ -94,29 +118,28 @@ mod object_mod_tests {
     }
 
     #[test]
-    fn can_parse_git_object() {
-        let test_inflated_git_obj = ["blob 12", "\x00", "git file contents"]
+    fn can_parse_git_blob() {
+        let test_inflated_git_obj = ["blob 17", "\x00", "git file contents"]
             .map(|s| s.as_bytes())
             .concat();
-        let path = PathBuf::from("foo/path");
         let sha = "abc123";
-        let gitobject = parse_git_obj(&test_inflated_git_obj, &path, &sha).unwrap();
-        assert_eq!("git file contents", from_utf8(&gitobject.contents).unwrap());
-        assert_eq!(12, gitobject.len);
-        assert_eq!(obj::GitObjTyp::Blob, gitobject.obj);
-        assert_eq!("abc123".to_owned(), gitobject.sha);
+        if let GitObj::Blob(blob) = parse_git_obj(&test_inflated_git_obj, &sha).unwrap() {
+            assert_eq!("git file contents", from_utf8(&blob.contents).unwrap());
+            assert_eq!(17, blob.len);
+        } else {
+            panic!("should be a Blob object")
+        }
     }
 
     #[test]
     fn can_round_trip_commit() {
         let commit_bytes = test_utils::fake_commit();
         let sha = "8f30e364422bba93030062297731f00a1510984b";
-        let parsed_commit = parse_git_obj(&commit_bytes, &PathBuf::from("foo"), sha).unwrap();
-
-        // instances of the KvsMsg struct are the in mem representation of commits
-        // it might make sense to combine KvsMsg with GitObject at some point.
-        let parsed_kvsmsg = commit::parse_kv_list_msg(&parsed_commit.contents, sha).unwrap();
-        let round_trip_commit = parsed_kvsmsg.as_bytes();
-        assert_eq!(commit_bytes, round_trip_commit);
+        if let GitObj::Commit(parsed_commit) = parse_git_obj(&commit_bytes, sha).unwrap() {
+            let round_trip_commit = parsed_commit.as_bytes();
+            assert_eq!(commit_bytes, round_trip_commit);
+        } else {
+            panic!("should be a Commit object")
+        }
     }
 }

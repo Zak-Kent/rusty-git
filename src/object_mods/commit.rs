@@ -39,7 +39,7 @@ fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
 
 // list of key value pairs with msg
 // this format is used for commits and tags
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct KvsMsg {
     pub kvs: HashMap<Vec<u8>, Vec<u8>>,
     pub kvs_order: Vec<Vec<u8>>,
@@ -163,11 +163,3 @@ mod commit_tests {
         assert_eq!("foobar", sha);
     }
 }
-
-
-
-
-
-
-
-
