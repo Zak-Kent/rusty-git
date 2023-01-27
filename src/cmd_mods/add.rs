@@ -5,9 +5,8 @@ use std::os::unix::prelude::MetadataExt;
 
 use crate::error as err;
 use crate::index as idx;
-use crate::objects as obj;
 use crate::utils;
-use crate::object_mods::{self as objm, blob, AsBytes};
+use crate::objects::{self as obj, blob, AsBytes};
 
 pub fn file_to_index_entry(
     file_name: &str,
@@ -37,7 +36,7 @@ pub fn file_to_index_entry(
     };
 
     let blob = blob::blob_from_path(file)?;
-    let sha = objm::write_object(blob, None)?;
+    let sha = obj::write_object(blob, None)?;
 
     return Ok(idx::IndexEntry {
         c_time: c_time_dt,

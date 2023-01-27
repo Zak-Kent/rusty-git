@@ -6,11 +6,10 @@ use std::str::from_utf8;
 
 use crate::error as err;
 use crate::index as idx;
-use crate::object_mods::{self as objm, tree, NameSha};
-use crate::objects as obj;
+use crate::objects::{self as obj, tree, NameSha};
 use crate::utils;
 
-fn index_file_sha_pairs<T: objm::NameSha>(
+fn index_file_sha_pairs<T: obj::NameSha>(
     input: &Vec<T>,
     name_prefix: Option<String>,
 ) -> HashSet<(String, String)> {
@@ -29,9 +28,9 @@ fn tree_file_sha_pairs(
     // extra complexity needed to deal with nested git Tree objects
     for elm in tree.contents.iter() {
         if PathBuf::from(&elm.path).is_dir() {
-            let obj = objm::read_object(&utils::get_sha_from_binary(&elm.sha), repo)?;
+            let obj = obj::read_object(&utils::get_sha_from_binary(&elm.sha), repo)?;
             match obj {
-                objm::GitObj::Tree(inner_tree) => {
+                obj::GitObj::Tree(inner_tree) => {
                     let nested_name_prefix: Option<String>;
                     if let Some(ref nnp) = name_prefix {
                         nested_name_prefix = Some(format!("{}/{}", nnp, elm.path));
@@ -57,7 +56,7 @@ fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<Strin
 
     if let Ok(hsha) = head_sha {
         // get a set of (name, sha) pairs for each file in the last commit object
-        if let objm::GitObj::Commit(commit) = objm::read_object(&hsha, repo)? {
+        if let obj::GitObj::Commit(commit) = obj::read_object(&hsha, repo)? {
             let commit_tree = utils::git_get_tree_from_commit(commit, &repo)?;
             commit_tree_files_n_shas = tree_file_sha_pairs(commit_tree, None, repo)?;
         } else {

@@ -4,8 +4,7 @@ use crate::cli;
 use crate::cmd_mods::{add, checkout, init, log, lstree, refs, status, tag};
 use crate::error as err;
 use crate::index as idx;
-use crate::object_mods::{self as objm, blob};
-use crate::objects as obj;
+use crate::objects::{self as obj, blob};
 use crate::utils;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
@@ -28,7 +27,7 @@ fn hash_object(
     } else {
         repo_arg = None;
     }
-    return Ok(Some(objm::write_object(blob, repo_arg)?.to_string()));
+    return Ok(Some(obj::write_object(blob, repo_arg)?.to_string()));
 }
 
 // This version of cat-file differs from git's due to the fact git expects
@@ -36,7 +35,7 @@ fn hash_object(
 // where this version only needs the sha and then reads the obj type from
 // the compressed file stored at the sha's location
 fn cat_file(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let file_contents = objm::read_object_as_string(&sha, &repo)?;
+    let file_contents = obj::read_object_as_string(&sha, &repo)?;
     return Ok(Some(file_contents));
 }
 
@@ -51,9 +50,9 @@ fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
 }
 
 fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let obj = objm::read_object(&sha, &repo)?;
+    let obj = obj::read_object(&sha, &repo)?;
 
-    if let objm::GitObj::Tree(tree) = obj {
+    if let obj::GitObj::Tree(tree) = obj {
         let output = lstree::git_tree_to_string(tree);
         return Ok(Some(output));
     } else {
@@ -63,12 +62,12 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
 
 fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     checkout::dir_ok_for_checkout(dir)?;
-    let obj = objm::read_object(&sha, &repo)?;
+    let obj = obj::read_object(&sha, &repo)?;
     match obj {
-        objm::GitObj::Tree(tree) => {
+        obj::GitObj::Tree(tree) => {
             checkout::checkout_tree(tree, dir, &repo)?;
         }
-        objm::GitObj::Commit(commit) => {
+        obj::GitObj::Commit(commit) => {
             let tree = utils::git_get_tree_from_commit(commit, &repo)?;
             checkout::checkout_tree(tree, dir, &repo)?;
         }

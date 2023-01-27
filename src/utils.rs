@@ -3,8 +3,7 @@ use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
 use crate::error as err;
-use crate::objects as obj;
-use crate::object_mods::{self as objm, tree, commit};
+use crate::objects::{self as obj, tree, commit};
 
 
 // ----------- git utils ---------------
@@ -40,7 +39,7 @@ pub fn git_obj_path_from_sha(sha: &str, repo: &obj::Repo) -> Result<PathBuf, err
 pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
     let head_path = repo.gitdir.join("HEAD");
     let head = read(head_path)?;
-    let head_ref = objm::parse_git_head(&head)?;
+    let head_ref = obj::parse_git_head(&head)?;
     let sha_path = repo.gitdir.join(head_ref);
 
     if sha_path.exists() {
@@ -60,7 +59,7 @@ pub fn git_get_tree_from_commit(
         None => return Err(err::Error::GitNoTreeKeyInCommit),
     };
 
-    if let objm::GitObj::Tree(tree) = objm::read_object(tree_sha, repo)? {
+    if let obj::GitObj::Tree(tree) = obj::read_object(tree_sha, repo)? {
         return Ok(tree);
     } else {
         return Err(err::Error::GitCheckoutWrongObjType(format!("{}", "not a tree obj")));

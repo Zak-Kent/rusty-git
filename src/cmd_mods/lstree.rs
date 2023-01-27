@@ -1,5 +1,5 @@
 use crate::utils;
-use crate::object_mods::tree;
+use crate::objects::tree;
 
 pub fn git_tree_leaf_to_string(tree::TreeLeaf { mode, path, sha }: &tree::TreeLeaf) -> String {
     let sha = utils::get_sha_from_binary(sha);

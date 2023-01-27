@@ -1,11 +1,10 @@
 use std::str::from_utf8;
 
 use crate::error as err;
-use crate::object_mods::{self as objm, commit};
-use crate::objects as obj;
+use crate::objects::{self as obj, commit};
 
 pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<commit::Commit, err::Error> {
-    if let objm::GitObj::Commit(commit) = objm::read_object(sha, repo)? {
+    if let obj::GitObj::Commit(commit) = obj::read_object(sha, repo)? {
         return Ok(commit);
     } else {
         return Err(err::Error::GitUnexpectedInternalType(format!(

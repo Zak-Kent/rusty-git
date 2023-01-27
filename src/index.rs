@@ -14,7 +14,7 @@ use std::cmp::Ordering;
 use std::str::from_utf8;
 
 use crate::{error as err, utils};
-use crate::object_mods as obj;
+use crate::objects as obj;
 
 fn nom_many0_err(input: &[u8]) -> Err<Error<&[u8]>> {
     // this error type allows the parser to continue with the input
@@ -218,7 +218,7 @@ pub fn parse_git_index(input: &[u8]) -> Result<Index, err::Error> {
 mod object_parsing_tests {
     use super::*;
     use crate::test_utils;
-    use crate::object_mods::AsBytes;
+    use crate::objects::AsBytes;
 
     #[test]
     fn can_parse_index_entry() {
