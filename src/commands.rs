@@ -233,7 +233,7 @@ mod object_tests {
             starting_file_names.insert(e.name);
         }
 
-        let new_file_name = "foo.txt";
+        let new_file_name = "foo-aleady-exists-in-fake-index.txt";
         let new_file = File::create(repo.worktree.join(new_file_name));
         writeln!(new_file.unwrap(), "{}", "hahaha").unwrap();
 

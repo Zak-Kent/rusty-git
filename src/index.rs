@@ -13,8 +13,8 @@ use sha1_smol as sha1;
 use std::cmp::Ordering;
 use std::str::from_utf8;
 
-use crate::{error as err, utils};
 use crate::objects as obj;
+use crate::{error as err, utils};
 
 fn nom_many0_err(input: &[u8]) -> Err<Error<&[u8]>> {
     // this error type allows the parser to continue with the input
@@ -157,14 +157,12 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Index {
     pub entries: Vec<IndexEntry>,
-    pub extensions: Vec<u8>,
 }
 
 impl Index {
     pub fn new(entry: IndexEntry) -> Result<Index, err::Error> {
         return Ok(Index {
             entries: [entry].to_vec(),
-            extensions: [].to_vec(),
         });
     }
 }
@@ -185,7 +183,7 @@ impl obj::AsBytes for Index {
             .collect::<Vec<Vec<u8>>>()
             .concat();
 
-        let index_contents = [header, entries, self.extensions.clone()].concat();
+        let index_contents = [header, entries].concat();
 
         let mut hasher = sha1::Sha1::new();
         hasher.update(&index_contents);
@@ -202,23 +200,16 @@ pub fn parse_git_index(input: &[u8]) -> Result<Index, err::Error> {
         return Err(err::Error::GitUnrecognizedIndexVersion(version));
     }
     let (input, _num_entries) = u32(Big)(input)?;
-    let (input, entries) = many0(parse_git_index_entry)(input)?;
+    let (_, entries) = many0(parse_git_index_entry)(input)?;
 
-    // need to drop the 20 byte index contents hash
-    let ext_len = input.len() - 20;
-    let extensions = input[..ext_len].to_vec();
-
-    return Ok(Index {
-        entries,
-        extensions,
-    });
+    return Ok(Index { entries });
 }
 
 #[cfg(test)]
 mod object_parsing_tests {
     use super::*;
-    use crate::test_utils;
     use crate::objects::AsBytes;
+    use crate::test_utils;
 
     #[test]
     fn can_parse_index_entry() {
@@ -261,18 +252,9 @@ mod object_parsing_tests {
 
     #[test]
     fn can_parse_index() {
-        let index = test_utils::fake_index_bytes();
+        let index = test_utils::fake_index_without_extension_info();
 
-        let expected = Vec::from([
-            "Cargo.toml",
-            "src/cli.rs",
-            "src/commands.rs",
-            "src/error.rs",
-            "src/main.rs",
-            "src/object_parsers.rs",
-            "src/objects.rs",
-            "src/utils.rs",
-        ]);
+        let expected = Vec::from(["bar.txt", "celt.txt", "delt.txt", "foo.txt"]);
 
         let parsed_index = parse_git_index(&index).unwrap();
         let parsed_index_clone = parsed_index.clone();
@@ -296,7 +278,6 @@ mod object_parsing_tests {
         let parsed_index = parse_git_index(&index).unwrap();
         let expected = Index {
             entries: [].to_vec(),
-            extensions: [].to_vec(),
         };
         assert_eq!(expected, parsed_index);
     }
