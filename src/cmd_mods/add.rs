@@ -7,7 +7,7 @@ use crate::error as err;
 use crate::index as idx;
 use crate::objects as obj;
 use crate::utils;
-use crate::object_mods::AsBytes;
+use crate::object_mods::{self as objm, blob, AsBytes};
 
 pub fn file_to_index_entry(
     file_name: &str,
@@ -36,13 +36,8 @@ pub fn file_to_index_entry(
         return Err(err::Error::TimestampConversionError);
     };
 
-    let hash = obj::write_object(
-        obj::SourceFile {
-            typ: obj::GitObjTyp::Blob,
-            source: file,
-        },
-        None,
-    )?;
+    let blob = blob::blob_from_path(file)?;
+    let sha = objm::write_object(blob, None)?;
 
     return Ok(idx::IndexEntry {
         c_time: c_time_dt,
@@ -53,7 +48,7 @@ pub fn file_to_index_entry(
         uid: md.uid(),
         gid: md.gid(),
         size: md.size() as u32,
-        sha: hash.bytes().to_vec(),
+        sha: sha.bytes().to_vec(),
         name: file_name.to_owned(),
     });
 }

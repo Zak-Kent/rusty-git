@@ -1,36 +1,8 @@
-use deflate::write::ZlibEncoder;
-use deflate::Compression;
-use sha1_smol as sha1;
-use std::fs::{self, create_dir, read, File};
-use std::io::Write;
+use std::fs;
 use std::path::PathBuf;
 
 use crate::error as err;
 use crate::utils;
-
-#[derive(Debug, PartialEq)]
-pub enum GitObjTyp {
-    Commit,
-    Tree,
-    Blob,
-}
-
-// a file in the .git/objects dir
-#[derive(Debug)]
-pub struct GitObject {
-    pub obj: GitObjTyp,
-    pub len: usize,
-    pub contents: Vec<u8>,
-    pub source: PathBuf,
-    pub sha: String,
-}
-
-// a file that is being fed into git
-#[derive(Debug)]
-pub struct SourceFile {
-    pub typ: GitObjTyp,
-    pub source: PathBuf,
-}
 
 #[derive(Debug, Clone)]
 pub struct Repo {
@@ -70,59 +42,9 @@ pub fn find_gitdir_and_create_repo(path: String) -> Result<Repo, err::Error> {
     return Ok(Repo::new(path)?);
 }
 
-pub fn write_object(src: SourceFile, repo: Option<&Repo>) -> Result<sha1::Digest, err::Error> {
-    let path = match src {
-        SourceFile {
-            typ: GitObjTyp::Blob,
-            source,
-            ..
-        } => source,
-        _ => panic!("only implemented for Blobs!"),
-    };
-
-    let length = utils::content_length(&path)?.to_string();
-    let contents = read(&path)?;
-    let contents_with_header = [
-        "blob".as_bytes(),
-        " ".as_bytes(),
-        length.as_bytes(),
-        "\x00".as_bytes(),
-        contents.as_slice(),
-    ]
-    .concat();
-
-    let mut hasher = sha1::Sha1::new();
-    hasher.update(&contents_with_header);
-    let digest = hasher.digest();
-
-    // The existance of a repo indicates that the contents of the file should be
-    // compressed and written to the appropriate dir/file in .git/objects
-    if let Some(repo) = repo {
-        utils::git_check_for_rusty_git_allowed(repo)?;
-        let hash = digest.to_string();
-        let git_obj_dir = repo.worktree.join(format!(".git/objects/{}", &hash[..2]));
-        let git_obj_path = git_obj_dir.join(format!("{}", &hash[2..]));
-
-        if !git_obj_dir.exists() {
-            create_dir(&git_obj_dir)?;
-        }
-
-        if !git_obj_path.exists() {
-            let obj_file = File::create(&git_obj_path)?;
-            let mut encoder = ZlibEncoder::new(obj_file, Compression::Default);
-            encoder.write_all(&contents_with_header)?;
-            encoder.finish()?;
-        } else {
-            println!("file with compressed contents already exists at that hash");
-        }
-    }
-    return Ok(digest);
-}
-
 #[cfg(test)]
 mod object_tests {
     use std::fs::{create_dir_all, File};
-    use std::io::Write;
 
     use super::*;
     use crate::test_utils;
@@ -186,32 +108,4 @@ mod object_tests {
         Ok(())
     }
 
-    #[test]
-    fn generate_hash_and_write_compressed_file() -> Result<(), err::Error> {
-        let worktree = test_utils::test_gitdir().unwrap();
-        let repo = Repo::new(worktree.path().to_path_buf())?;
-
-        let fp = worktree.path().join("tempfoo");
-        let mut tmpfile = File::create(&fp)?;
-        writeln!(tmpfile, "foobar")?;
-
-        let src = SourceFile {
-            typ: GitObjTyp::Blob,
-            source: fp.to_owned(),
-        };
-        let hash = write_object(src, Some(&repo))?.to_string();
-
-        assert_eq!(hash, "323fae03f4606ea9991df8befbb2fca795e648fa".to_owned());
-
-        let git_obj_path =
-            worktree
-                .path()
-                .join(format!(".git/objects/{}/{}", &hash[..2], &hash[2..]));
-        assert_eq!(22, utils::content_length(&git_obj_path)?);
-
-        let obj_contents = objm::read_object_as_string(&hash, &repo)?;
-        assert_eq!("foobar\n", obj_contents);
-
-        Ok(())
-    }
 }

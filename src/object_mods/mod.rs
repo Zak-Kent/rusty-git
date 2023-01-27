@@ -1,3 +1,5 @@
+use deflate::write::ZlibEncoder;
+use deflate::Compression;
 use inflate::inflate_bytes_zlib;
 use nom::{
     branch::alt,
@@ -7,8 +9,8 @@ use nom::{
     Err, IResult,
 };
 use sha1_smol as sha1;
-use std::fmt::Display;
-use std::fs::read;
+use std::fs::{create_dir, read, File};
+use std::io::Write;
 use std::str::from_utf8;
 
 use crate::error as err;
@@ -41,16 +43,6 @@ pub fn parse_git_head(input: &[u8]) -> Result<String, err::Error> {
     return Ok(from_utf8(head_ref)?.to_owned());
 }
 
-fn parse_obj_type<'a>(input: &'a [u8]) -> IResult<&'a [u8], obj::GitObjTyp> {
-    let (input, obj) = alt((tag("blob"), tag("commit"), tag("tree")))(input)?;
-    return match obj {
-        b"blob" => Ok((input, obj::GitObjTyp::Blob)),
-        b"commit" => Ok((input, obj::GitObjTyp::Commit)),
-        b"tree" => Ok((input, obj::GitObjTyp::Tree)),
-        _ => Err(generic_nom_failure(input)),
-    };
-}
-
 fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
     let (input, _) = space1(input)?;
     let (input, size) = take_till1(|c| c == b'\x00')(input)?;
@@ -76,15 +68,16 @@ pub enum GitObj {
 }
 
 pub fn parse_git_obj<'a>(input: &'a [u8], sha: &'a str) -> Result<GitObj, err::Error> {
-    let (input, obj) = parse_obj_type(input)?;
+    let (input, obj) = alt((tag("blob"), tag("commit"), tag("tree")))(input)?;
     let (contents, len) = parse_obj_len(input)?;
     if len != contents.len() {
         return Err(err::Error::GitMalformedObject);
     }
     match obj {
-        obj::GitObjTyp::Blob => Ok(GitObj::Blob(blob::Blob::new(contents))),
-        obj::GitObjTyp::Tree => Ok(GitObj::Tree(tree::parse_git_tree(contents)?)),
-        obj::GitObjTyp::Commit => Ok(GitObj::Commit(commit::parse_kv_list_msg(contents, sha)?)),
+        b"blob" => Ok(GitObj::Blob(blob::Blob::new(contents))),
+        b"tree" => Ok(GitObj::Tree(tree::parse_git_tree(contents)?)),
+        b"commit" => Ok(GitObj::Commit(commit::parse_kv_list_msg(contents, sha)?)),
+        _ => Err(err::Error::GitUnrecognizedObjInHeader(from_utf8(&obj)?.to_string())),
     }
 }
 
@@ -105,6 +98,44 @@ pub fn read_object_as_string(sha: &str, repo: &obj::Repo) -> Result<String, err:
         GitObj::Tree(tree) => Ok(format!("{}", tree)),
         GitObj::Commit(commit) => Ok(format!("{}", commit)),
     }
+}
+
+pub fn write_object(
+    obj: GitObj,
+    repo: Option<&obj::Repo>,
+) -> Result<sha1::Digest, err::Error> {
+    let obj_bytes = match obj {
+        GitObj::Blob(blob) => blob.as_bytes(),
+        GitObj::Tree(tree) => tree.as_bytes(),
+        GitObj::Commit(commit) => commit.as_bytes(),
+    };
+
+    let mut hasher = sha1::Sha1::new();
+    hasher.update(&obj_bytes);
+    let digest = hasher.digest();
+
+    // The existance of a repo indicates that the contents of the file should be
+    // compressed and written to the appropriate dir/file in .git/objects
+    if let Some(repo) = repo {
+        utils::git_check_for_rusty_git_allowed(repo)?;
+        let hash = digest.to_string();
+        let git_obj_dir = repo.worktree.join(format!(".git/objects/{}", &hash[..2]));
+        let git_obj_path = git_obj_dir.join(format!("{}", &hash[2..]));
+
+        if !git_obj_dir.exists() {
+            create_dir(&git_obj_dir)?;
+        }
+
+        if !git_obj_path.exists() {
+            let obj_file = File::create(&git_obj_path)?;
+            let mut encoder = ZlibEncoder::new(obj_file, Compression::Default);
+            encoder.write_all(&obj_bytes)?;
+            encoder.finish()?;
+        } else {
+            println!("file with compressed contents already exists at that hash");
+        }
+    }
+    return Ok(digest);
 }
 
 #[cfg(test)]
@@ -142,5 +173,31 @@ mod object_mod_tests {
         } else {
             panic!("should be a Commit object")
         }
+    }
+
+    #[test]
+    fn generate_hash_and_write_compressed_file() -> Result<(), err::Error> {
+        let worktree = test_utils::test_gitdir().unwrap();
+        let repo = obj::Repo::new(worktree.path().to_path_buf())?;
+
+        let fp = worktree.path().join("tempfoo");
+        let mut tmpfile = File::create(&fp)?;
+        writeln!(tmpfile, "foobar")?;
+
+        let blob = blob::blob_from_path(fp)?;
+        let sha = write_object(blob, Some(&repo))?.to_string();
+
+        assert_eq!(sha, "323fae03f4606ea9991df8befbb2fca795e648fa".to_owned());
+
+        let git_obj_path =
+            worktree
+                .path()
+                .join(format!(".git/objects/{}/{}", &sha[..2], &sha[2..]));
+        assert_eq!(22, test_utils::content_length(&git_obj_path)?);
+
+        let obj_contents = read_object_as_string(&sha, &repo)?;
+        assert_eq!("foobar\n", obj_contents);
+
+        Ok(())
     }
 }

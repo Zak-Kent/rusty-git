@@ -4,7 +4,7 @@ use crate::cli;
 use crate::cmd_mods::{add, checkout, init, log, lstree, refs, status, tag};
 use crate::error as err;
 use crate::index as idx;
-use crate::object_mods as objm;
+use crate::object_mods::{self as objm, blob};
 use crate::objects as obj;
 use crate::utils;
 
@@ -16,23 +16,19 @@ fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
 fn hash_object(
     path: String,
     repo: obj::Repo,
-    write_object: bool,
+    write_obj: bool,
 ) -> Result<Option<String>, err::Error> {
-    let path: PathBuf = PathBuf::from(path);
+    let bpath: PathBuf = PathBuf::from(path);
+    let blob = blob::blob_from_path(bpath)?;
 
-    let src = obj::SourceFile {
-        typ: obj::GitObjTyp::Blob,
-        source: path,
-    };
-
-    // by passing None to write_object it will only return the hash, no write
+    // by passing None to write_obj it will only return the hash, no write
     let repo_arg;
-    if write_object {
+    if write_obj {
         repo_arg = Some(&repo);
     } else {
         repo_arg = None;
     }
-    return Ok(Some(obj::write_object(src, repo_arg)?.to_string()));
+    return Ok(Some(objm::write_object(blob, repo_arg)?.to_string()));
 }
 
 // This version of cat-file differs from git's due to the fact git expects
@@ -140,7 +136,7 @@ pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Er
     return Ok(None);
 }
 
-pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
+pub fn run_cmd(cmd: &cli::Cli, write_obj: bool) -> Result<Option<String>, err::Error> {
     let command = &cmd.command;
     let repo: Option<obj::Repo>;
 
@@ -153,9 +149,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
 
     match command {
         cli::GitCmd::Init => run_init(&cmd),
-        cli::GitCmd::HashObject { path } => {
-            hash_object(path.to_owned(), repo.unwrap(), write_object)
-        }
+        cli::GitCmd::HashObject { path } => hash_object(path.to_owned(), repo.unwrap(), write_obj),
         cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo.unwrap()),
         cli::GitCmd::Log { sha } => log(sha.to_owned(), repo.unwrap()),
         cli::GitCmd::LsTree { sha } => lstree(sha.to_owned(), repo.unwrap()),

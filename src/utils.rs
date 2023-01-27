@@ -1,4 +1,4 @@
-use std::fs::{metadata, read, read_dir, read_to_string};
+use std::fs::{read, read_dir, read_to_string};
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
@@ -113,10 +113,6 @@ pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     } else {
         Err(err::Error::PathDoesntExist(path.display().to_string()))
     }
-}
-
-pub fn content_length(path: &Path) -> Result<u64, err::Error> {
-    Ok(metadata(path)?.len())
 }
 
 #[cfg(test)]

@@ -27,6 +27,9 @@ pub enum Error {
     GitUnrecognizedIndexVersion(u32),
     #[error("Unexpected internal type found: {0}")]
     GitUnexpectedInternalType(String),
+    #[error("Unrecognized git file header: {0}")]
+    GitUnrecognizedObjInHeader(String),
+
 
     // program errors not related to git
     #[error("Path doesn't exist: {0}")]

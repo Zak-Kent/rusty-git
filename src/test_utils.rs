@@ -1,4 +1,4 @@
-use std::fs::{read, File};
+use std::fs::{read, File, metadata};
 use std::io::{Error, Write};
 use std::path::Path;
 use tempfile::{tempdir, TempDir};
@@ -46,6 +46,11 @@ pub fn test_add_dummy_commit_and_update_ref_heads(
     let mut ref_file = File::create(repo.gitdir.join(head_ref))?;
     writeln!(ref_file, "{}", sha)?;
     Ok(())
+}
+
+#[allow(dead_code)]
+pub fn content_length(path: &Path) -> Result<u64, err::Error> {
+    Ok(metadata(path)?.len())
 }
 
 #[allow(dead_code)]
