@@ -3,8 +3,8 @@ use std::io::Write;
 use std::path::Path;
 
 use crate::error as err;
-use crate::object_parsers as objp;
-use crate::objects as obj;
+use crate::objects::{self as obj, tree};
+// use crate::objects as obj;
 use crate::utils;
 
 fn dir_path_to_string(path: &Path) -> Result<String, err::Error> {
@@ -29,22 +29,20 @@ pub fn dir_ok_for_checkout(path: &Path) -> Result<bool, err::Error> {
     }
 }
 
-pub fn checkout_tree(tree: objp::Tree, path: &Path, repo: &obj::Repo) -> Result<(), err::Error> {
+pub fn checkout_tree(tree: tree::Tree, path: &Path, repo: &obj::Repo) -> Result<(), err::Error> {
     for leaf in tree.contents {
-        let obj = obj::read_object(&utils::get_sha_from_binary(&leaf.sha), repo)?;
-
-        match obj.obj {
-            obj::GitObjTyp::Tree => {
-                let sub_tree = objp::parse_git_tree(&obj.contents)?;
+        let obj = obj::read_object(&utils::get_sha_from_binary(&leaf.sha), &repo)?;
+        match obj {
+            obj::GitObj::Tree(sub_tree) => {
                 let dir_path = path.join(&leaf.path);
                 let dst = repo.worktree.join(&dir_path);
                 create_dir(dst)?;
                 checkout_tree(sub_tree, &dir_path, repo)?;
             }
-            obj::GitObjTyp::Blob => {
+            obj::GitObj::Blob(blob) => {
                 let dst = repo.worktree.join(path).join(&leaf.path);
                 let mut dstfile = File::create(dst)?;
-                dstfile.write_all(&obj.contents)?;
+                dstfile.write_all(&blob.contents)?;
             }
             _ => return Err(err::Error::GitTreeInvalidObject),
         }

@@ -1,19 +1,11 @@
 use std::path::{Path, PathBuf};
 
 use crate::cli;
+use crate::cmd_mods::{add, checkout, init, log, lstree, refs, status, tag};
 use crate::error as err;
-use crate::object_parsers as objp;
-use crate::objects as obj;
+use crate::index as idx;
+use crate::objects::{self as obj, blob};
 use crate::utils;
-
-use crate::cmd_mods::init;
-use crate::cmd_mods::log;
-use crate::cmd_mods::lstree;
-use crate::cmd_mods::checkout;
-use crate::cmd_mods::refs;
-use crate::cmd_mods::tag;
-use crate::cmd_mods::status;
-use crate::cmd_mods::add;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
@@ -23,23 +15,19 @@ fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
 fn hash_object(
     path: String,
     repo: obj::Repo,
-    write_object: bool,
+    write_obj: bool,
 ) -> Result<Option<String>, err::Error> {
-    let path: PathBuf = PathBuf::from(path);
+    let bpath: PathBuf = PathBuf::from(path);
+    let blob = blob::blob_from_path(bpath)?;
 
-    let src = obj::SourceFile {
-        typ: obj::GitObjTyp::Blob,
-        source: path,
-    };
-
-    // by passing None to write_object it will only return the hash, no write
+    // by passing None to write_obj it will only return the hash, no write
     let repo_arg;
-    if write_object {
+    if write_obj {
         repo_arg = Some(&repo);
     } else {
         repo_arg = None;
     }
-    return Ok(Some(obj::write_object(src, repo_arg)?.to_string()));
+    return Ok(Some(obj::write_object(blob, repo_arg)?.to_string()));
 }
 
 // This version of cat-file differs from git's due to the fact git expects
@@ -62,34 +50,29 @@ fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
 }
 
 fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    let obj::GitObject { obj, contents, .. } = obj::read_object(&sha, &repo)?;
-    if obj != obj::GitObjTyp::Tree {
-        return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
-    } else {
-        let tree = objp::parse_git_tree(&contents)?;
+    let obj = obj::read_object(&sha, &repo)?;
+
+    if let obj::GitObj::Tree(tree) = obj {
         let output = lstree::git_tree_to_string(tree);
         return Ok(Some(output));
+    } else {
+        return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
     }
 }
 
 fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     checkout::dir_ok_for_checkout(dir)?;
-
-    let obj::GitObject {
-        obj, contents, sha, ..
-    } = obj::read_object(&sha, &repo)?;
+    let obj = obj::read_object(&sha, &repo)?;
     match obj {
-        obj::GitObjTyp::Commit => {
-            let tree = utils::git_get_tree_from_commit(&sha, &contents, &repo)?;
+        obj::GitObj::Tree(tree) => {
             checkout::checkout_tree(tree, dir, &repo)?;
         }
-        obj::GitObjTyp::Tree => {
-            let tree = objp::parse_git_tree(&contents)?;
+        obj::GitObj::Commit(commit) => {
+            let tree = utils::git_get_tree_from_commit(commit, &repo)?;
             checkout::checkout_tree(tree, dir, &repo)?;
         }
         _ => return Err(err::Error::GitCheckoutWrongObjType(format!("{:?}", obj))),
-    };
-
+    }
     return Ok(None);
 }
 
@@ -118,7 +101,7 @@ fn tag(
 
 pub fn ls_files(repo: obj::Repo) -> Result<Option<String>, err::Error> {
     let index_contents = utils::git_read_index(&repo)?;
-    let index = objp::parse_git_index(&index_contents)?;
+    let index = idx::parse_git_index(&index_contents)?;
     let file_names: Vec<String> = index
         .entries
         .into_iter()
@@ -146,13 +129,13 @@ pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Er
     } else {
         // index doesn't exist yet and must be created
         let entry = add::file_to_index_entry(&file_name, &repo)?;
-        let index = objp::Index::new(entry)?;
+        let index = idx::Index::new(entry)?;
         add::write_index(index, &repo)?;
     }
     return Ok(None);
 }
 
-pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err::Error> {
+pub fn run_cmd(cmd: &cli::Cli, write_obj: bool) -> Result<Option<String>, err::Error> {
     let command = &cmd.command;
     let repo: Option<obj::Repo>;
 
@@ -165,9 +148,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_object: bool) -> Result<Option<String>, err
 
     match command {
         cli::GitCmd::Init => run_init(&cmd),
-        cli::GitCmd::HashObject { path } => {
-            hash_object(path.to_owned(), repo.unwrap(), write_object)
-        }
+        cli::GitCmd::HashObject { path } => hash_object(path.to_owned(), repo.unwrap(), write_obj),
         cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo.unwrap()),
         cli::GitCmd::Log { sha } => log(sha.to_owned(), repo.unwrap()),
         cli::GitCmd::LsTree { sha } => lstree(sha.to_owned(), repo.unwrap()),
@@ -246,7 +227,7 @@ mod object_tests {
         let repo = obj::Repo::new(gitdir.path().to_path_buf()).unwrap();
 
         let starting_index = read(gitdir.path().join(".git/index")).unwrap();
-        let parsed_starting_index = objp::parse_git_index(&starting_index).unwrap();
+        let parsed_starting_index = idx::parse_git_index(&starting_index).unwrap();
         let mut starting_file_names: HashSet<String> = HashSet::new();
         for e in parsed_starting_index.entries {
             starting_file_names.insert(e.name);
@@ -309,18 +290,14 @@ mod object_tests {
         run_cmd(&add_cmd, false).unwrap();
 
         let index = read(gitdir.path().join(".git/index")).unwrap();
-        let parsed_index = objp::parse_git_index(&index).unwrap();
+        let parsed_index = idx::parse_git_index(&index).unwrap();
         assert_eq!(1, parsed_index.entries.len());
         assert_eq!(
             new_file_full_path.to_str().unwrap(),
             parsed_index.entries.first().unwrap().name.as_str()
         );
 
-        let git_objects = gitdir
-            .path()
-            .join(".git/objects")
-            .read_dir()
-            .unwrap();
+        let git_objects = gitdir.path().join(".git/objects").read_dir().unwrap();
         assert_eq!(1, git_objects.count());
     }
 }

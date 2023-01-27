@@ -5,11 +5,11 @@ use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
 use crate::error as err;
-use crate::object_parsers::{self as objp, NameSha};
-use crate::objects as obj;
+use crate::index as idx;
+use crate::objects::{self as obj, tree, NameSha};
 use crate::utils;
 
-fn index_file_sha_pairs<T: objp::NameSha>(
+fn index_file_sha_pairs<T: obj::NameSha>(
     input: &Vec<T>,
     name_prefix: Option<String>,
 ) -> HashSet<(String, String)> {
@@ -20,7 +20,7 @@ fn index_file_sha_pairs<T: objp::NameSha>(
 }
 
 fn tree_file_sha_pairs(
-    tree: objp::Tree,
+    tree: tree::Tree,
     name_prefix: Option<String>,
     repo: &obj::Repo,
 ) -> Result<HashSet<(String, String)>, err::Error> {
@@ -28,21 +28,20 @@ fn tree_file_sha_pairs(
     // extra complexity needed to deal with nested git Tree objects
     for elm in tree.contents.iter() {
         if PathBuf::from(&elm.path).is_dir() {
-            let obj::GitObject { obj, contents, .. } =
-                obj::read_object(&utils::get_sha_from_binary(&elm.sha), &repo)?;
-            if obj != obj::GitObjTyp::Tree {
-                return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
-            } else {
-                let nested_name_prefix: Option<String>;
-                if let Some(ref nnp) = name_prefix {
-                    nested_name_prefix = Some(format!("{}/{}", nnp, elm.path));
-                } else {
-                    nested_name_prefix = Some(elm.path.clone());
+            let obj = obj::read_object(&utils::get_sha_from_binary(&elm.sha), repo)?;
+            match obj {
+                obj::GitObj::Tree(inner_tree) => {
+                    let nested_name_prefix: Option<String>;
+                    if let Some(ref nnp) = name_prefix {
+                        nested_name_prefix = Some(format!("{}/{}", nnp, elm.path));
+                    } else {
+                        nested_name_prefix = Some(elm.path.clone());
+                    }
+                    let inner_tree_file_sha_pairs =
+                        tree_file_sha_pairs(inner_tree, nested_name_prefix, repo)?;
+                    file_sha_pairs.extend(inner_tree_file_sha_pairs);
                 }
-                let tree = objp::parse_git_tree(&contents)?;
-                let inner_tree_file_sha_pairs =
-                    tree_file_sha_pairs(tree, nested_name_prefix, repo)?;
-                file_sha_pairs.extend(inner_tree_file_sha_pairs);
+                _ => return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj))),
             }
         } else {
             file_sha_pairs.insert(elm.get_name_and_sha(name_prefix.clone()));
@@ -51,15 +50,21 @@ fn tree_file_sha_pairs(
     return Ok(file_sha_pairs);
 }
 
-fn staged_but_not_commited(repo: &obj::Repo, index: &objp::Index) -> Result<String, err::Error> {
+fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<String, err::Error> {
     let commit_tree_files_n_shas: HashSet<(String, String)>;
     let head_sha = utils::git_sha_from_head(repo);
 
     if let Ok(hsha) = head_sha {
         // get a set of (name, sha) pairs for each file in the last commit object
-        let obj::GitObject { contents, sha, .. } = obj::read_object(&hsha, &repo)?;
-        let commit_tree = utils::git_get_tree_from_commit(&sha, &contents, &repo)?;
-        commit_tree_files_n_shas = tree_file_sha_pairs(commit_tree, None, repo)?;
+        if let obj::GitObj::Commit(commit) = obj::read_object(&hsha, repo)? {
+            let commit_tree = utils::git_get_tree_from_commit(commit, &repo)?;
+            commit_tree_files_n_shas = tree_file_sha_pairs(commit_tree, None, repo)?;
+        } else {
+            return Err(err::Error::GitUnexpectedInternalType(format!(
+                "{:?}",
+                "Expected a commit object"
+            )));
+        }
     } else {
         // This error happens when no commits exist yet and you try to look
         // them up from HEAD. This can happen when running status before
@@ -154,12 +159,12 @@ struct LocalChanges {
 
 fn local_changes_not_staged_for_commit_or_untracked(
     repo: &obj::Repo,
-    index: &objp::Index,
+    index: &idx::Index,
 ) -> Result<LocalChanges, err::Error> {
     let names_mtimes = index
         .entries
         .iter()
-        .map(|objp::IndexEntry { name, m_time, .. }| (name.to_owned(), m_time.to_owned()));
+        .map(|idx::IndexEntry { name, m_time, .. }| (name.to_owned(), m_time.to_owned()));
 
     let idx_name_mtime_pairs: HashSet<(String, DateTime<Utc>)> = HashSet::from_iter(names_mtimes);
     let worktree_name_mtime_pairs = gather_mtime_from_worktree(None, repo)?;
@@ -197,7 +202,7 @@ pub fn status(repo: &obj::Repo) -> Result<String, err::Error> {
     }
 
     let idx = utils::git_read_index(repo)?;
-    let index = objp::parse_git_index(&idx)?;
+    let index = idx::parse_git_index(&idx)?;
 
     let staged = staged_but_not_commited(repo, &index)?;
     let LocalChanges {

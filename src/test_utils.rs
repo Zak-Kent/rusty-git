@@ -1,12 +1,11 @@
-use std::fs::{read, File};
+use std::fs::{read, File, metadata};
 use std::io::{Error, Write};
 use std::path::Path;
 use tempfile::{tempdir, TempDir};
 
 use crate::error as err;
-use crate::object_parsers as objp;
-use crate::objects as obj;
 use crate::cmd_mods::init as init;
+use crate::objects as obj;
 
 #[allow(dead_code)]
 pub fn dir_is_empty(path: &Path) -> Result<bool, err::Error> {
@@ -42,10 +41,15 @@ pub fn test_add_dummy_commit_and_update_ref_heads(
     //TODO: expand this to add an actual commit in .git/objects later
     let head_path = repo.gitdir.join("HEAD");
     let head = read(head_path)?;
-    let head_ref = objp::parse_git_head(&head)?;
+    let head_ref = obj::parse_git_head(&head)?;
     let mut ref_file = File::create(repo.gitdir.join(head_ref))?;
     writeln!(ref_file, "{}", sha)?;
     Ok(())
+}
+
+#[allow(dead_code)]
+pub fn content_length(path: &Path) -> Result<u64, err::Error> {
+    Ok(metadata(path)?.len())
 }
 
 #[allow(dead_code)]

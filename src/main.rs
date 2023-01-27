@@ -4,11 +4,11 @@ use std::process;
 mod cli;
 mod commands;
 mod error;
-mod object_parsers;
-mod objects;
+mod index;
 mod test_utils;
 mod utils;
 mod cmd_mods;
+mod objects;
 
 use crate::commands as cmd;
 use crate::error as err;

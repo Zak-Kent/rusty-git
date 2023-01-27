@@ -1,16 +1,20 @@
 use std::str::from_utf8;
 
 use crate::error as err;
-use crate::object_parsers as objp;
-use crate::objects as obj;
+use crate::objects::{self as obj, commit};
 
-pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<objp::KvsMsg, err::Error> {
-    let commit = obj::read_object(sha, repo)?;
-    let parsed_commit = objp::parse_kv_list_msg(&commit.contents, sha)?;
-    return Ok(parsed_commit);
+pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<commit::Commit, err::Error> {
+    if let obj::GitObj::Commit(commit) = obj::read_object(sha, repo)? {
+        return Ok(commit);
+    } else {
+        return Err(err::Error::GitUnexpectedInternalType(format!(
+            "{:?}",
+            "Expected a commit object"
+        )));
+    }
 }
 
-pub fn commit_to_string(commit: &objp::KvsMsg) -> Result<String, err::Error> {
+pub fn commit_to_string(commit: &commit::Commit) -> Result<String, err::Error> {
     let mut output = String::new();
     output.push_str(&format!("commit: {}\n", commit.sha));
     output.push_str(&format!(
@@ -24,9 +28,9 @@ pub fn commit_to_string(commit: &objp::KvsMsg) -> Result<String, err::Error> {
 pub fn follow_commits_to_root(
     sha: &str,
     repo: &obj::Repo,
-) -> Result<Vec<objp::KvsMsg>, err::Error> {
+) -> Result<Vec<commit::Commit>, err::Error> {
     let mut commit = read_commit(sha, &repo)?;
-    let mut commit_log: Vec<objp::KvsMsg> = Vec::new();
+    let mut commit_log: Vec<commit::Commit> = Vec::new();
 
     // add the first commit to log
     commit_log.push(commit.clone());
@@ -41,7 +45,7 @@ pub fn follow_commits_to_root(
     return Ok(commit_log);
 }
 
-pub fn commit_log_to_string(commit_log: Vec<objp::KvsMsg>) -> Result<String, err::Error> {
+pub fn commit_log_to_string(commit_log: Vec<commit::Commit>) -> Result<String, err::Error> {
     let mut output = String::new();
     for commit in commit_log {
         output.push_str(&commit_to_string(&commit)?);

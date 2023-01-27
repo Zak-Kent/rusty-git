@@ -1,10 +1,9 @@
-use std::fs::{metadata, read, read_dir, read_to_string};
+use std::fs::{read, read_dir, read_to_string};
 use std::path::{Path, PathBuf};
 use std::str::from_utf8;
 
 use crate::error as err;
-use crate::object_parsers as objp;
-use crate::objects as obj;
+use crate::objects::{self as obj, tree, commit};
 
 
 // ----------- git utils ---------------
@@ -40,7 +39,7 @@ pub fn git_obj_path_from_sha(sha: &str, repo: &obj::Repo) -> Result<PathBuf, err
 pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
     let head_path = repo.gitdir.join("HEAD");
     let head = read(head_path)?;
-    let head_ref = objp::parse_git_head(&head)?;
+    let head_ref = obj::parse_git_head(&head)?;
     let sha_path = repo.gitdir.join(head_ref);
 
     if sha_path.exists() {
@@ -52,21 +51,19 @@ pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
 }
 
 pub fn git_get_tree_from_commit(
-    sha: &str,
-    contents: &[u8],
+    commit: commit::Commit,
     repo: &obj::Repo,
-) -> Result<objp::Tree, err::Error> {
-    let objp::KvsMsg { kvs, .. } = objp::parse_kv_list_msg(contents, sha)?;
-
-    let tree_sha = match kvs.get("tree".as_bytes()) {
+) -> Result<tree::Tree, err::Error> {
+    let tree_sha = match commit.kvs.get("tree".as_bytes()) {
         Some(s) => from_utf8(s)?,
         None => return Err(err::Error::GitNoTreeKeyInCommit),
     };
 
-    let obj::GitObject { contents, .. } = obj::read_object(tree_sha, repo)?;
-    let tree = objp::parse_git_tree(&contents)?;
-
-    return Ok(tree);
+    if let obj::GitObj::Tree(tree) = obj::read_object(tree_sha, repo)? {
+        return Ok(tree);
+    } else {
+        return Err(err::Error::GitCheckoutWrongObjType(format!("{}", "not a tree obj")));
+    }
 }
 
 pub fn git_read_index(repo: &obj::Repo) -> Result<Vec<u8>, err::Error> {
@@ -115,10 +112,6 @@ pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     } else {
         Err(err::Error::PathDoesntExist(path.display().to_string()))
     }
-}
-
-pub fn content_length(path: &Path) -> Result<u64, err::Error> {
-    Ok(metadata(path)?.len())
 }
 
 #[cfg(test)]
