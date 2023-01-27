@@ -4,7 +4,7 @@ use crate::error as err;
 use crate::object_mods::{self as objm, commit};
 use crate::objects as obj;
 
-pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<commit::KvsMsg, err::Error> {
+pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<commit::Commit, err::Error> {
     if let objm::GitObj::Commit(commit) = objm::read_object(sha, repo)? {
         return Ok(commit);
     } else {
@@ -15,7 +15,7 @@ pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<commit::KvsMsg, err::E
     }
 }
 
-pub fn commit_to_string(commit: &commit::KvsMsg) -> Result<String, err::Error> {
+pub fn commit_to_string(commit: &commit::Commit) -> Result<String, err::Error> {
     let mut output = String::new();
     output.push_str(&format!("commit: {}\n", commit.sha));
     output.push_str(&format!(
@@ -29,9 +29,9 @@ pub fn commit_to_string(commit: &commit::KvsMsg) -> Result<String, err::Error> {
 pub fn follow_commits_to_root(
     sha: &str,
     repo: &obj::Repo,
-) -> Result<Vec<commit::KvsMsg>, err::Error> {
+) -> Result<Vec<commit::Commit>, err::Error> {
     let mut commit = read_commit(sha, &repo)?;
-    let mut commit_log: Vec<commit::KvsMsg> = Vec::new();
+    let mut commit_log: Vec<commit::Commit> = Vec::new();
 
     // add the first commit to log
     commit_log.push(commit.clone());
@@ -46,7 +46,7 @@ pub fn follow_commits_to_root(
     return Ok(commit_log);
 }
 
-pub fn commit_log_to_string(commit_log: Vec<commit::KvsMsg>) -> Result<String, err::Error> {
+pub fn commit_log_to_string(commit_log: Vec<commit::Commit>) -> Result<String, err::Error> {
     let mut output = String::new();
     for commit in commit_log {
         output.push_str(&commit_to_string(&commit)?);

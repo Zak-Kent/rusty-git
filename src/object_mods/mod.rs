@@ -6,6 +6,8 @@ use nom::{
     error::{Error, ErrorKind},
     Err, IResult,
 };
+use sha1_smol as sha1;
+use std::fmt::Display;
 use std::fs::read;
 use std::str::from_utf8;
 
@@ -70,7 +72,7 @@ fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
 pub enum GitObj {
     Blob(blob::Blob),
     Tree(tree::Tree),
-    Commit(commit::KvsMsg),
+    Commit(commit::Commit),
 }
 
 pub fn parse_git_obj<'a>(input: &'a [u8], sha: &'a str) -> Result<GitObj, err::Error> {
@@ -98,12 +100,11 @@ pub fn read_object(sha: &str, repo: &obj::Repo) -> Result<GitObj, err::Error> {
 
 pub fn read_object_as_string(sha: &str, repo: &obj::Repo) -> Result<String, err::Error> {
     let gitobject = read_object(sha, &repo)?;
-    let obj_bytes = match gitobject {
-        GitObj::Blob(blob) => blob.as_bytes(),
-        GitObj::Tree(tree) => tree.as_bytes(),
-        GitObj::Commit(commit) => commit.as_bytes(),
-    };
-    return Ok(from_utf8(&obj_bytes)?.to_owned());
+    match gitobject {
+        GitObj::Blob(blob) => Ok(format!("{}", blob)),
+        GitObj::Tree(tree) => Ok(format!("{}", tree)),
+        GitObj::Commit(commit) => Ok(format!("{}", commit)),
+    }
 }
 
 #[cfg(test)]

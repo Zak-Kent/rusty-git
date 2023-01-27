@@ -8,6 +8,8 @@ use nom::{
     IResult,
 };
 use std::collections::HashMap;
+use std::fmt;
+use std::str::from_utf8;
 
 use super::AsBytes;
 use crate::error as err;
@@ -40,47 +42,65 @@ fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
 // list of key value pairs with msg
 // this format is used for commits and tags
 #[derive(Debug, Clone, PartialEq)]
-pub struct KvsMsg {
+pub struct Commit {
     pub kvs: HashMap<Vec<u8>, Vec<u8>>,
     pub kvs_order: Vec<Vec<u8>>,
     pub msg: Vec<u8>,
     pub sha: String,
 }
 
-impl AsBytes for KvsMsg {
-    fn as_bytes(&self) -> Vec<u8> {
-        let mut commit_bytes: Vec<u8> = Vec::new();
-        for elm in self.kvs_order.clone() {
-            if let Some((k, v)) = self.kvs.get_key_value(&elm) {
-                let mut line: Vec<u8> = [k.clone(), [b' '].to_vec(), v.clone(), [b'\n'].to_vec()]
-                    .into_iter()
-                    .flatten()
-                    .collect();
-                commit_bytes.append(&mut line);
-            }
+fn commit_body_as_bytes(commit: &Commit) -> Vec<u8> {
+    let mut commit_bytes: Vec<u8> = Vec::new();
+    for elm in commit.kvs_order.clone() {
+        if let Some((k, v)) = commit.kvs.get_key_value(&elm) {
+            let mut line: Vec<u8> = [k.clone(), [b' '].to_vec(), v.clone(), [b'\n'].to_vec()]
+                .into_iter()
+                .flatten()
+                .collect();
+            commit_bytes.append(&mut line);
         }
-        commit_bytes.push(b'\n');
-        commit_bytes.append(&mut self.msg.clone());
+    }
+    commit_bytes.push(b'\n');
+    commit_bytes.append(&mut commit.msg.clone());
+    return commit_bytes;
+}
+
+impl AsBytes for Commit {
+    fn as_bytes(&self) -> Vec<u8> {
+        let mut commit_body = commit_body_as_bytes(self);
 
         let mut output_bytes: Vec<u8> = [
             b"commit".to_vec(),
             [b' '].to_vec(),
-            commit_bytes.len().to_string().as_bytes().to_vec(),
+            commit_body.len().to_string().as_bytes().to_vec(),
             [b'\x00'].to_vec(),
         ]
         .into_iter()
         .flatten()
         .collect();
 
-        output_bytes.append(&mut commit_bytes);
+        output_bytes.append(&mut commit_body);
         return output_bytes;
     }
 }
 
-pub fn parse_kv_list_msg(input: &[u8], sha: &str) -> Result<KvsMsg, err::Error> {
+impl fmt::Display for Commit {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let commit_bytes = commit_body_as_bytes(self);
+        let output = from_utf8(&commit_bytes);
+        if let Err(utf8_conversion_err) = output {
+            println!("Error converting commit to utf8: {}", utf8_conversion_err);
+            return Err(fmt::Error);
+        } else {
+            write!(f, "{}", output.unwrap())
+        }
+    }
+}
+
+pub fn parse_kv_list_msg(input: &[u8], sha: &str) -> Result<Commit, err::Error> {
     let (input, (kvs_order, kvs)) = parse_kv_pairs(input)?;
     let (input, _) = parse_seperator_line(input)?;
-    return Ok(KvsMsg {
+    return Ok(Commit {
         kvs,
         kvs_order,
         msg: input.to_vec(),
@@ -145,7 +165,7 @@ mod commit_tests {
 
         let fake_sha = "foobar";
 
-        let KvsMsg {
+        let Commit {
             kvs,
             kvs_order,
             msg,

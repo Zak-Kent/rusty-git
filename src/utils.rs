@@ -52,7 +52,7 @@ pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
 }
 
 pub fn git_get_tree_from_commit(
-    commit: commit::KvsMsg,
+    commit: commit::Commit,
     repo: &obj::Repo,
 ) -> Result<tree::Tree, err::Error> {
     let tree_sha = match commit.kvs.get("tree".as_bytes()) {

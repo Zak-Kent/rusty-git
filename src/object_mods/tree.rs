@@ -4,10 +4,11 @@ use nom::{
     multi::many1,
     IResult,
 };
+use std::fmt;
 use std::str::from_utf8;
 
 use super::{AsBytes, NameSha};
-use crate::{error as err, utils};
+use crate::{cmd_mods::lstree, error as err, utils};
 
 // a single entry in a Git tree obj file
 type ParsedLeaf<'a> = (&'a [u8], &'a [u8], &'a [u8]);
@@ -21,7 +22,7 @@ pub fn parse_git_tree_leaf(input: &[u8]) -> IResult<&[u8], ParsedLeaf> {
     return Ok((input, ParsedLeaf::from((mode, path, bsha))));
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct TreeLeaf {
     pub mode: String,
     pub path: String,
@@ -51,7 +52,7 @@ impl AsBytes for TreeLeaf {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Tree {
     pub contents: Vec<TreeLeaf>,
 }
@@ -64,6 +65,12 @@ impl AsBytes for Tree {
             .map(|e| e.as_bytes())
             .collect::<Vec<Vec<u8>>>()
             .concat();
+    }
+}
+
+impl fmt::Display for Tree {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", lstree::git_tree_to_string(self.clone()))
     }
 }
 
