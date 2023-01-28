@@ -2,7 +2,7 @@ use nom::{
     bytes::complete::{is_not, take, take_till1, take_while1},
     character::{
         complete::{space0, space1},
-        is_newline,
+        is_newline, is_space,
     },
     multi::many1,
     IResult,
@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::str::from_utf8;
 
-use super::AsBytes;
+use super::{generic_nom_failure, AsBytes};
 use crate::error as err;
 
 fn parse_kv_pair(input: &[u8]) -> IResult<&[u8], (&[u8], &[u8])> {
@@ -37,6 +37,67 @@ fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
     let (input, _) = space0(input)?;
     let (input, nl) = take_while1(is_newline)(input)?;
     return Ok((input, nl));
+}
+
+fn parse_user_bytes(input: &[u8]) -> IResult<&[u8], User> {
+    let (input, name) = take_till1(is_space)(input)?;
+    let name = match from_utf8(name) {
+        Ok(n) => n,
+        _ => return Err(generic_nom_failure(input)),
+    };
+    let (input, _) = take(1usize)(input)?; // eat space
+
+    let (input, email) = take_till1(is_space)(input)?;
+    let email = match from_utf8(email) {
+        Ok(e) => e,
+        _ => return Err(generic_nom_failure(input)),
+    };
+    let (input, _) = take(1usize)(input)?; // eat space
+
+    let (input, timestamp) = take_till1(is_newline)(input)?;
+    let timestamp = match from_utf8(timestamp) {
+        Ok(ts) => ts,
+        _ => return Err(generic_nom_failure(input)),
+    };
+    let (input, _) = take(1usize)(input)?; // eat newline
+
+    return Ok((
+        input,
+        User {
+            name: name.to_owned(),
+            email: email.to_owned(),
+            timestamp: timestamp.to_owned(),
+        },
+    ));
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct User {
+    pub name: String,
+    pub email: String,
+    pub timestamp: String,
+}
+
+impl User {
+    fn new(name: String, email: String, timestamp: String) -> User {
+        User {
+            name,
+            email,
+            timestamp,
+        }
+    }
+}
+
+impl fmt::Display for User {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} {} {}\n",
+            self.name,
+            self.email,
+            self.timestamp
+        )
+    }
 }
 
 // list of key value pairs with msg
@@ -111,6 +172,7 @@ pub fn parse_kv_list_msg(input: &[u8], sha: &str) -> Result<Commit, err::Error> 
 #[cfg(test)]
 mod commit_tests {
     use super::*;
+    use chrono::{Local, TimeZone};
 
     #[test]
     fn can_parse_kv_pair() {
@@ -181,5 +243,32 @@ mod commit_tests {
         assert_eq!("this is a test commit\nmessage".as_bytes(), msg);
         assert_eq!("tree".as_bytes(), kvs_order[0]);
         assert_eq!("foobar", sha);
+    }
+
+    #[test]
+    fn can_parse_user() {
+        let user_bytes = [
+            90, 97, 107, 45, 75, 101, 110, 116, 32, 60, 122, 97, 107, 46, 107, 101, 110, 116, 64,
+            103, 109, 97, 105, 108, 46, 99, 111, 109, 62, 32, 49, 54, 55, 52, 57, 51, 57, 56, 57,
+            55, 32, 45, 48, 55, 48, 48, 10
+        ];
+        let local =
+            Local
+            .datetime_from_str("2023-01-28T14:04:57", "%Y-%m-%dT%H:%M:%S")
+            .unwrap();
+        let local_tz = local.offset().to_string().replace(":", "");
+        let local_ts = local.timestamp().to_string();
+
+        let expected_user = User {
+            name: "Zak-Kent".to_string(),
+            email: "<zak.kent@gmail.com>".to_string(),
+            timestamp: format!("{} {}", local_ts, local_tz),
+        };
+
+        let (_, user) = parse_user_bytes(&user_bytes).unwrap();
+        assert_eq!(expected_user, user);
+
+        // checking round trip of bytes
+        assert_eq!(user_bytes, format!("{}", user).as_bytes());
     }
 }
