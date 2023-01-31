@@ -1,10 +1,11 @@
 use nom::{
-    bytes::complete::{is_not, take, take_till1, take_while1},
+    bytes::complete::{is_not, tag, take, take_till1, take_while1},
     character::{
         complete::{space0, space1},
-        is_newline, is_space,
+        is_newline,
     },
     multi::many1,
+    sequence::terminated,
     IResult,
 };
 use std::collections::HashMap;
@@ -39,28 +40,31 @@ fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
     return Ok((input, nl));
 }
 
+fn take_till_sep_convert_val_to_string(
+    separator: &'static str,
+) -> impl Fn(&[u8]) -> IResult<&[u8], String> {
+    return move |input| {
+        let sep_char = match separator {
+            " " => b' ',
+            "\n" => b'\n',
+            _ => {
+                println!("this func only supports space and newline separators");
+                return Err(generic_nom_failure(input));
+            }
+        };
+        let (input, target) = terminated(take_till1(|c| c == sep_char), tag(separator))(input)?;
+        let target = match from_utf8(target) {
+            Ok(t) => t.trim(),
+            _ => return Err(generic_nom_failure(input)),
+        };
+        return Ok((input, target.to_owned()));
+    };
+}
+
 fn parse_user_bytes(input: &[u8]) -> IResult<&[u8], User> {
-    let (input, name) = take_till1(is_space)(input)?;
-    let name = match from_utf8(name) {
-        Ok(n) => n,
-        _ => return Err(generic_nom_failure(input)),
-    };
-    let (input, _) = take(1usize)(input)?; // eat space
-
-    let (input, email) = take_till1(is_space)(input)?;
-    let email = match from_utf8(email) {
-        Ok(e) => e,
-        _ => return Err(generic_nom_failure(input)),
-    };
-    let (input, _) = take(1usize)(input)?; // eat space
-
-    let (input, timestamp) = take_till1(is_newline)(input)?;
-    let timestamp = match from_utf8(timestamp) {
-        Ok(ts) => ts,
-        _ => return Err(generic_nom_failure(input)),
-    };
-    let (input, _) = take(1usize)(input)?; // eat newline
-
+    let (input, name) = take_till_sep_convert_val_to_string(" ")(input)?;
+    let (input, email) = take_till_sep_convert_val_to_string(" ")(input)?;
+    let (input, timestamp) = take_till_sep_convert_val_to_string("\n")(input)?;
     return Ok((
         input,
         User {
