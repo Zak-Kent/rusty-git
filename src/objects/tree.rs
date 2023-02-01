@@ -59,12 +59,25 @@ pub struct Tree {
 
 impl AsBytes for Tree {
     fn as_bytes(&self) -> Vec<u8> {
-        return self
+        let mut tree_body = self
             .contents
             .iter()
             .map(|e| e.as_bytes())
             .collect::<Vec<Vec<u8>>>()
             .concat();
+
+        let mut output_bytes: Vec<u8> = [
+            b"tree".to_vec(),
+            [b' '].to_vec(),
+            tree_body.len().to_string().as_bytes().to_vec(),
+            [b'\x00'].to_vec(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
+
+        output_bytes.append(&mut tree_body);
+        return output_bytes;
     }
 }
 
@@ -155,8 +168,5 @@ mod tree_tests {
         };
         let tree = parse_git_tree(&tree_file).unwrap();
         assert_eq!(expected_val, tree);
-
-        let round_trip_bytes = tree.as_bytes();
-        assert_eq!(tree_file, round_trip_bytes);
     }
 }

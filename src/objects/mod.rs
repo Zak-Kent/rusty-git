@@ -201,6 +201,19 @@ mod object_mod_tests {
     }
 
     #[test]
+    fn can_round_trip_tree() {
+        let tree_bytes = test_utils::fake_tree();
+        let sha = "sha123";
+        if let GitObj::Tree(parsed_tree) = parse_git_obj(&tree_bytes, sha).unwrap() {
+            let round_trip_tree = parsed_tree.as_bytes();
+            assert_eq!(tree_bytes, round_trip_tree);
+        } else {
+            panic!("should be a Tree object")
+        }
+
+    }
+
+    #[test]
     fn generate_hash_and_write_compressed_file() -> Result<(), err::Error> {
         let worktree = test_utils::test_gitdir().unwrap();
         let repo = Repo::new(worktree.path().to_path_buf())?;
