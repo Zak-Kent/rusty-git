@@ -1,5 +1,3 @@
-use std::str::from_utf8;
-
 use crate::error as err;
 use crate::objects::{self as obj, commit};
 
@@ -17,11 +15,8 @@ pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<commit::Commit, err::E
 pub fn commit_to_string(commit: &commit::Commit) -> Result<String, err::Error> {
     let mut output = String::new();
     output.push_str(&format!("commit: {}\n", commit.sha));
-    output.push_str(&format!(
-        "Author: {}\n",
-        from_utf8(commit.kvs.get("author".as_bytes()).unwrap())?
-    ));
-    output.push_str(&format!("\n{}\n", from_utf8(&commit.msg)?));
+    output.push_str(&format!("Author: {}\n", commit.author));
+    output.push_str(&format!("\n{}\n", commit.msg));
     return Ok(output);
 }
 
@@ -35,12 +30,9 @@ pub fn follow_commits_to_root(
     // add the first commit to log
     commit_log.push(commit.clone());
 
-    while let Some(parent) = &commit.kvs.get("parent".as_bytes()) {
-        let parent_sha = from_utf8(parent)?;
-        commit = read_commit(parent_sha, &repo)?;
-
-        // add parent commits to log
-        commit_log.push(commit.clone());
+    while let Some(parent) = commit.parent {
+        commit = read_commit(&parent, &repo)?;
+        commit_log.push(commit.clone()); // add parent commits to log
     }
     return Ok(commit_log);
 }

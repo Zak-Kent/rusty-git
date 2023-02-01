@@ -17,8 +17,6 @@ pub enum Error {
     GitLsTreeWrongObjType(String),
     #[error("checkout called with wrong object type: {0} is not a Tree or Commit. Check your sha.")]
     GitCheckoutWrongObjType(String),
-    #[error("Git commit doesn't have a tree entry")]
-    GitNoTreeKeyInCommit,
     #[error("Git tree contains object other than blob or tree")]
     GitTreeInvalidObject,
     #[error("Git tag -a isn't implemented yet")]
@@ -29,7 +27,6 @@ pub enum Error {
     GitUnexpectedInternalType(String),
     #[error("Unrecognized git file header: {0}")]
     GitUnrecognizedObjInHeader(String),
-
 
     // program errors not related to git
     #[error("Path doesn't exist: {0}")]

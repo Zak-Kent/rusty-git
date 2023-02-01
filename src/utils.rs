@@ -1,6 +1,5 @@
 use std::fs::{read, read_dir, read_to_string};
 use std::path::{Path, PathBuf};
-use std::str::from_utf8;
 
 use crate::error as err;
 use crate::objects::{self as obj, tree, commit};
@@ -54,12 +53,7 @@ pub fn git_get_tree_from_commit(
     commit: commit::Commit,
     repo: &obj::Repo,
 ) -> Result<tree::Tree, err::Error> {
-    let tree_sha = match commit.kvs.get("tree".as_bytes()) {
-        Some(s) => from_utf8(s)?,
-        None => return Err(err::Error::GitNoTreeKeyInCommit),
-    };
-
-    if let obj::GitObj::Tree(tree) = obj::read_object(tree_sha, repo)? {
+    if let obj::GitObj::Tree(tree) = obj::read_object(&commit.tree, repo)? {
         return Ok(tree);
     } else {
         return Err(err::Error::GitCheckoutWrongObjType(format!("{}", "not a tree obj")));

@@ -11,11 +11,10 @@ use nom::{
 use sha1_smol as sha1;
 use std::fs::{self as fs, create_dir, read, File};
 use std::io::Write;
-use std::str::from_utf8;
 use std::path::PathBuf;
+use std::str::from_utf8;
 
 use crate::error as err;
-// use crate::objects as obj;
 use crate::utils;
 
 pub mod blob;
@@ -100,8 +99,12 @@ pub fn parse_git_obj<'a>(input: &'a [u8], sha: &'a str) -> Result<GitObj, err::E
     match obj {
         b"blob" => Ok(GitObj::Blob(blob::Blob::new(contents))),
         b"tree" => Ok(GitObj::Tree(tree::parse_git_tree(contents)?)),
-        b"commit" => Ok(GitObj::Commit(commit::parse_kv_list_msg(contents, sha)?)),
-        _ => Err(err::Error::GitUnrecognizedObjInHeader(from_utf8(&obj)?.to_string())),
+        b"commit" => {
+            return Ok(GitObj::Commit(commit::parse_commit(contents, sha)?));
+        }
+        _ => Err(err::Error::GitUnrecognizedObjInHeader(
+            from_utf8(&obj)?.to_string(),
+        )),
     }
 }
 
@@ -124,10 +127,7 @@ pub fn read_object_as_string(sha: &str, repo: &Repo) -> Result<String, err::Erro
     }
 }
 
-pub fn write_object(
-    obj: GitObj,
-    repo: Option<&Repo>,
-) -> Result<sha1::Digest, err::Error> {
+pub fn write_object(obj: GitObj, repo: Option<&Repo>) -> Result<sha1::Digest, err::Error> {
     let obj_bytes = match obj {
         GitObj::Blob(blob) => blob.as_bytes(),
         GitObj::Tree(tree) => tree.as_bytes(),
@@ -189,7 +189,7 @@ mod object_mod_tests {
     }
 
     #[test]
-    fn can_round_trip_commit() {
+    fn can_round_trip_commit_new() {
         let commit_bytes = test_utils::fake_commit();
         let sha = "8f30e364422bba93030062297731f00a1510984b";
         if let GitObj::Commit(parsed_commit) = parse_git_obj(&commit_bytes, sha).unwrap() {
