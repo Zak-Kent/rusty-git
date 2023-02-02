@@ -35,12 +35,15 @@ pub fn git_obj_path_from_sha(sha: &str, repo: &obj::Repo) -> Result<PathBuf, err
     }
 }
 
-pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
+pub fn git_head_ref_path(repo: &obj::Repo) -> Result<PathBuf, err::Error> {
     let head_path = repo.gitdir.join("HEAD");
     let head = read(head_path)?;
     let head_ref = obj::parse_git_head(&head)?;
-    let sha_path = repo.gitdir.join(head_ref);
+    return Ok(repo.gitdir.join(head_ref))
+}
 
+pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
+    let sha_path = git_head_ref_path(repo)?;
     if sha_path.exists() {
         let sha = read_to_string(&sha_path)?.trim().to_owned();
         return Ok(sha);

@@ -8,7 +8,7 @@ use std::fmt;
 use std::str::from_utf8;
 
 use super::{AsBytes, NameSha};
-use crate::{cmd_mods::lstree, error as err, utils};
+use crate::{cmd_mods::lstree, error as err, index as idx, utils};
 
 // a single entry in a Git tree obj file
 type ParsedLeaf<'a> = (&'a [u8], &'a [u8], &'a [u8]);
@@ -100,6 +100,25 @@ pub fn parse_git_tree(input: &[u8]) -> Result<Tree, err::Error> {
     }
 
     return Ok(Tree { contents });
+}
+
+fn entry_to_treeleaf(entry: &idx::IndexEntry) -> TreeLeaf {
+    let idx::IndexEntry {
+        sha, name, mode, ..
+    } = entry;
+    // the mode encoding is different between index entries and tree entries
+    // in tree entries it is stored as the ASCII encoding of the octal encoding
+    // and in index entries it's stored as a BE byte order 32 bit int.
+    return TreeLeaf {
+        mode: format!("{:o}", mode), // format the 32bit int to octal String
+        path: name.to_string(),
+        sha: sha.to_vec(),
+    };
+}
+
+pub fn index_to_tree(index: &idx::Index) -> Tree {
+    let leaves = index.entries.iter().map(|e| entry_to_treeleaf(e)).collect();
+    return Tree { contents: leaves };
 }
 
 #[cfg(test)]

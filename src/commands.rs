@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::cli;
-use crate::cmd_mods::{add, checkout, init, log, lstree, refs, status, tag};
+use crate::cmd_mods::{add, checkout, init, log, lstree, refs, status, tag, commit as cmt};
 use crate::error as err;
 use crate::index as idx;
 use crate::objects::{self as obj, blob};
@@ -135,6 +135,11 @@ pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Er
     return Ok(None);
 }
 
+fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
+    cmt::commit(msg, repo)?;
+    return Ok(None);
+}
+
 pub fn run_cmd(cmd: &cli::Cli, write_obj: bool) -> Result<Option<String>, err::Error> {
     let command = &cmd.command;
     let repo: Option<obj::Repo>;
@@ -162,6 +167,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_obj: bool) -> Result<Option<String>, err::E
         cli::GitCmd::LsFiles => ls_files(repo.unwrap()),
         cli::GitCmd::Status => status(repo.unwrap()),
         cli::GitCmd::Add { file_name } => add(file_name.to_owned(), repo.unwrap()),
+        cli::GitCmd::Commit { msg } => commit(msg.to_string(), repo.unwrap()),
     }
 }
 

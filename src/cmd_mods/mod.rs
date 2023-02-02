@@ -6,3 +6,4 @@ pub mod refs;
 pub mod tag;
 pub mod status;
 pub mod add;
+pub mod commit;

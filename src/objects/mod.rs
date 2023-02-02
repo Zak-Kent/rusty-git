@@ -150,13 +150,12 @@ pub fn write_object(obj: GitObj, repo: Option<&Repo>) -> Result<sha1::Digest, er
             create_dir(&git_obj_dir)?;
         }
 
+        // if path already exists a file with the same contents is already in the obj store
         if !git_obj_path.exists() {
             let obj_file = File::create(&git_obj_path)?;
             let mut encoder = ZlibEncoder::new(obj_file, Compression::Default);
             encoder.write_all(&obj_bytes)?;
             encoder.finish()?;
-        } else {
-            println!("file with compressed contents already exists at that hash");
         }
     }
     return Ok(digest);

@@ -47,6 +47,11 @@ pub enum GitCmd {
     Add {
         file_name: String
     },
+    /// Record changes staged in the index to the repository
+    Commit {
+        #[arg(short, value_name = "Commit message")]
+        msg: String
+    },
 }
 
 #[derive(Parser, Debug)]

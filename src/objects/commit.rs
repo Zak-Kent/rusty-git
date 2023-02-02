@@ -1,3 +1,4 @@
+use chrono::offset;
 use nom::{
     bytes::complete::{tag, take_till1, take_while1},
     character::{complete::space0, is_newline},
@@ -5,6 +6,7 @@ use nom::{
     sequence::terminated,
     IResult,
 };
+use sha1_smol::Sha1;
 use std::fmt;
 use std::str::from_utf8;
 
@@ -15,6 +17,17 @@ fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
     let (input, _) = space0(input)?;
     let (input, nl) = take_while1(is_newline)(input)?;
     return Ok((input, nl));
+}
+
+pub fn create_dummy_user() -> User {
+    let local = offset::Local::now();
+    let local_tz = local.offset().to_string().replace(":", "");
+    let local_ts = local.timestamp().to_string();
+    User {
+        name: "foo_name".to_string(),
+        email: "<foo@email.com>".to_string(),
+        timestamp: format!("{} {}", local_ts, local_tz),
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -73,6 +86,19 @@ pub struct Commit {
     pub committer: User,
     pub msg: String,
     pub sha: String,
+}
+
+impl Commit {
+    /// this function is needed when creating a new Commit object
+    /// vs. reading an existing one from the object store. In the
+    /// case of reading an existing object the sha is already known
+    pub fn calc_and_update_sha(&mut self) -> Commit {
+        let mut hasher = Sha1::new();
+        hasher.update(&self.as_bytes());
+        let sha = hasher.digest().to_string();
+        self.sha = sha;
+        return self.to_owned();
+    }
 }
 
 impl fmt::Display for Commit {
