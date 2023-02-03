@@ -40,5 +40,6 @@ Commands:
   ls-files     List the names of the files being tracked in the git index
   status       Show the working tree status
   add          Add file contents to the index
+  commit       Record changes staged in the index to the repository
   help         Print this message or the help of the given subcommand(s)
 ```
