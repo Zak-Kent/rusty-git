@@ -3,18 +3,23 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use crate::objects::{self as obj, blob, commit, tree};
+use crate::cmd_mods::status;
 use crate::error as err;
 use crate::index as idx;
 use crate::utils;
 
 pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
-    // don't allow commits unless user opts in
-    utils::git_check_for_rusty_git_allowed(&repo)?;
-
     let index_exists = utils::git_index_exists(&repo);
     if index_exists {
         let index_contents = utils::git_read_index(&repo)?;
         let index = idx::parse_git_index(&index_contents)?;
+
+        // check if there are staged files that need to be committed
+        let files_to_commit = status::staged_but_not_commited(&repo, &index)?;
+        if files_to_commit == "" {
+            println!("Nothing added to commit! Run 'rusty-git status' to see state of index.");
+            return Ok(None);
+        }
 
         let tree = tree::index_to_tree(&index);
         let tree_sha = obj::write_object(obj::GitObj::Tree(tree.clone()), Some(&repo))?;

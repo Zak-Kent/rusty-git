@@ -136,6 +136,9 @@ pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Er
 }
 
 fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
+    // don't allow commits unless user opts in
+    utils::git_check_for_rusty_git_allowed(&repo)?;
+
     cmt::commit(msg, repo)?;
     return Ok(None);
 }

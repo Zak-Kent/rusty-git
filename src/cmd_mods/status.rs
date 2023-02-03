@@ -50,7 +50,7 @@ fn tree_file_sha_pairs(
     return Ok(file_sha_pairs);
 }
 
-fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<String, err::Error> {
+pub fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<String, err::Error> {
     let commit_tree_files_n_shas: HashSet<(String, String)>;
     let head_sha = utils::git_sha_from_head(repo);
 
