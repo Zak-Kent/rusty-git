@@ -23,7 +23,7 @@ impl Blob {
 
 pub fn blob_from_path(path: PathBuf) -> Result<GitObj, err::Error> {
     let blob_contents = read(path)?;
-    return Ok(GitObj::Blob(Blob::new(&blob_contents)));
+    Ok(GitObj::Blob(Blob::new(&blob_contents)))
 }
 
 impl AsBytes for Blob {
@@ -45,7 +45,7 @@ impl fmt::Display for Blob {
         let output = from_utf8(&self.contents);
         if let Err(utf8_conversion_err) = output {
             println!("Error converting blob to utf8: {}", utf8_conversion_err);
-            return Err(fmt::Error);
+            Err(fmt::Error)
         } else {
             write!(f, "{}", output.unwrap())
         }

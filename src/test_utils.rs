@@ -9,20 +9,20 @@ use crate::objects as obj;
 
 #[allow(dead_code)]
 pub fn dir_is_empty(path: &Path) -> Result<bool, err::Error> {
-    return Ok(path.try_exists()? && path.read_dir()?.next().is_none());
+    Ok(path.try_exists()? && path.read_dir()?.next().is_none())
 }
 
 #[allow(dead_code)]
 pub fn test_tempdir() -> Result<TempDir, Error> {
     let tmp_dir = tempdir()?;
-    return Ok(tmp_dir);
+    Ok(tmp_dir)
 }
 
 #[allow(dead_code)]
 pub fn test_gitdir() -> Result<TempDir, err::Error> {
     let dir = test_tempdir()?;
     init::create_git_repo(dir.path())?;
-    return Ok(dir);
+    Ok(dir)
 }
 
 #[allow(dead_code)]
@@ -30,7 +30,7 @@ pub fn test_gitdir_with_index() -> Result<TempDir, err::Error> {
     let dir = test_gitdir()?;
     let mut index = File::create(dir.path().join(".git/index"))?;
     index.write(&fake_index_without_extension_info())?;
-    return Ok(dir);
+    Ok(dir)
 }
 
 #[allow(dead_code)]

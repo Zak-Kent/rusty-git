@@ -57,9 +57,9 @@ impl obj::NameSha for IndexEntry {
     fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String) {
         let sha = utils::get_sha_from_binary(&self.sha);
         if let Some(prefix) = name_prefix {
-            return (format!("{prefix}/{}", self.name), sha);
+            (format!("{prefix}/{}", self.name), sha)
         } else {
-            return (self.name.clone(), sha);
+            (self.name.clone(), sha)
         }
     }
 }
@@ -83,14 +83,14 @@ impl obj::AsBytes for IndexEntry {
         let entry_length = 62 + name_size;
         let padding_bytes: Vec<u8> = (0..(8 - entry_length % 8)).map(|_| b'\0').collect();
 
-        return [
+        [
             index_meta_info,
             self.sha.clone(),
             name_size.to_be_bytes().to_vec(),
             self.name.as_bytes().to_vec(),
             padding_bytes,
         ]
-        .concat();
+        .concat()
     }
 }
 
@@ -137,7 +137,7 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
     // the parser need to eat the padding bytes after each entry
     let (input, _null_bytes) = take(padding_bytes)(input)?;
 
-    return Ok((
+    Ok((
         input,
         IndexEntry {
             c_time: c_time_dt,
@@ -151,7 +151,7 @@ pub fn parse_git_index_entry(input: &[u8]) -> IResult<&[u8], IndexEntry> {
             sha: bsha.to_vec(),
             name: parsed_name.to_owned(),
         },
-    ));
+    ))
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -161,9 +161,9 @@ pub struct Index {
 
 impl Index {
     pub fn new(entry: IndexEntry) -> Result<Index, err::Error> {
-        return Ok(Index {
+        Ok(Index {
             entries: [entry].to_vec(),
-        });
+        })
     }
 }
 
@@ -189,7 +189,7 @@ impl obj::AsBytes for Index {
         hasher.update(&index_contents);
         let hash = hasher.digest().bytes();
 
-        return [index_contents, hash.to_vec()].concat();
+        [index_contents, hash.to_vec()].concat()
     }
 }
 
@@ -202,7 +202,7 @@ pub fn parse_git_index(input: &[u8]) -> Result<Index, err::Error> {
     let (input, _num_entries) = u32(Big)(input)?;
     let (_, entries) = many0(parse_git_index_entry)(input)?;
 
-    return Ok(Index { entries });
+    Ok(Index { entries })
 }
 
 #[cfg(test)]

@@ -4,15 +4,14 @@ use std::path::Path;
 
 use crate::error as err;
 use crate::objects::{self as obj, tree};
-// use crate::objects as obj;
 use crate::utils;
 
 fn dir_path_to_string(path: &Path) -> Result<String, err::Error> {
     if let Some(dir_name) = path.to_str() {
-        return Ok(dir_name.to_owned());
+        Ok(dir_name.to_owned())
     } else {
         println!("couldn't convert dir to str: {:?}", path);
-        return Err(err::Error::DirNameToUtf8Conversion);
+        Err(err::Error::DirNameToUtf8Conversion)
     }
 }
 
@@ -23,9 +22,9 @@ pub fn dir_ok_for_checkout(path: &Path) -> Result<bool, err::Error> {
     };
 
     if path.read_dir()?.next().is_none() {
-        return Ok(true);
+        Ok(true)
     } else {
-        return Err(err::Error::TargetDirNotEmpty(dir_path_to_string(path)?));
+        Err(err::Error::TargetDirNotEmpty(dir_path_to_string(path)?))
     }
 }
 
@@ -47,5 +46,5 @@ pub fn checkout_tree(tree: tree::Tree, path: &Path, repo: &obj::Repo) -> Result<
             _ => return Err(err::Error::GitTreeInvalidObject),
         }
     }
-    return Ok(());
+    Ok(())
 }

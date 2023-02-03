@@ -47,7 +47,7 @@ fn tree_file_sha_pairs(
             file_sha_pairs.insert(elm.get_name_and_sha(name_prefix.clone()));
         }
     }
-    return Ok(file_sha_pairs);
+    Ok(file_sha_pairs)
 }
 
 pub fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<String, err::Error> {
@@ -76,14 +76,14 @@ pub fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<S
     // get set of (name, sha) pairs for each file in the index
     let index_files_n_shas: HashSet<(String, String)> = index_file_sha_pairs(&index.entries, None);
 
-    return Ok(format!(
+    Ok(format!(
         "{}",
         index_files_n_shas
             .difference(&commit_tree_files_n_shas)
             .into_iter()
             .map(|(name, _)| format!("modified: {name}\n"))
             .collect::<String>()
-    ));
+    ))
 }
 
 fn ignored_files(repo: &obj::Repo) -> Result<HashSet<PathBuf>, err::Error> {
@@ -107,7 +107,7 @@ fn ignored_files(repo: &obj::Repo) -> Result<HashSet<PathBuf>, err::Error> {
             }
         }
     }
-    return Ok(output);
+    Ok(output)
 }
 
 fn gather_mtime_from_worktree(
@@ -149,7 +149,7 @@ fn gather_mtime_from_worktree(
             };
         }
     }
-    return Ok(file_mtime_pairs);
+    Ok(file_mtime_pairs)
 }
 
 struct LocalChanges {
@@ -187,10 +187,10 @@ fn local_changes_not_staged_for_commit_or_untracked(
             .collect::<String>()
     );
 
-    return Ok(LocalChanges {
+    Ok(LocalChanges {
         not_staged,
         not_tracked,
-    });
+    })
 }
 
 pub fn status(repo: &obj::Repo) -> Result<String, err::Error> {
@@ -215,5 +215,5 @@ pub fn status(repo: &obj::Repo) -> Result<String, err::Error> {
          Untracked files:\n\n{}",
         staged, not_staged, not_tracked
     );
-    return Ok(status);
+    Ok(status)
 }

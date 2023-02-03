@@ -16,7 +16,7 @@ use crate::error as err;
 fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
     let (input, _) = space0(input)?;
     let (input, nl) = take_while1(is_newline)(input)?;
-    return Ok((input, nl));
+    Ok((input, nl))
 }
 
 pub fn create_dummy_user() -> User {
@@ -46,7 +46,7 @@ impl fmt::Display for User {
 fn take_till_sep_convert_val_to_string(
     separator: &'static str,
 ) -> impl Fn(&[u8]) -> IResult<&[u8], String> {
-    return move |input| {
+    move |input| {
         let sep_char = match separator {
             " " => b' ',
             "\n" => b'\n',
@@ -60,22 +60,22 @@ fn take_till_sep_convert_val_to_string(
             Ok(t) => t.trim(),
             _ => return Err(generic_nom_failure(input)),
         };
-        return Ok((input, target.to_owned()));
-    };
+        Ok((input, target.to_owned()))
+    }
 }
 
 fn parse_user_bytes(input: &[u8]) -> IResult<&[u8], User> {
     let (input, name) = take_till_sep_convert_val_to_string(" ")(input)?;
     let (input, email) = take_till_sep_convert_val_to_string(" ")(input)?;
     let (input, timestamp) = take_till_sep_convert_val_to_string("\n")(input)?;
-    return Ok((
+    Ok((
         input,
         User {
             name: name.to_owned(),
             email: email.to_owned(),
             timestamp: timestamp.to_owned(),
         },
-    ));
+    ))
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -97,7 +97,7 @@ impl Commit {
         hasher.update(&self.as_bytes());
         let sha = hasher.digest().to_string();
         self.sha = sha;
-        return self.to_owned();
+        self.to_owned()
     }
 }
 
@@ -140,7 +140,7 @@ impl AsBytes for Commit {
         .collect();
 
         output_bytes.append(&mut commit_body);
-        return output_bytes;
+        output_bytes
     }
 }
 
@@ -149,15 +149,15 @@ impl AsBytes for Commit {
 /// String stripping any surrounding whitespace or newlines
 /// e.g. fn("tree") called with "tree sha123\n" returns ([], "sha123".to_string())
 fn parse_kv_pair_v_to_string(key: &'static str) -> impl Fn(&[u8]) -> IResult<&[u8], String> {
-    return move |input| {
+    move |input| {
         let (input, _) = tag(key)(input)?;
         let (input, val) = terminated(take_till1(is_newline), tag("\n"))(input)?;
         let val = match from_utf8(val) {
             Ok(v) => v.trim(),
             _ => return Err(generic_nom_failure(input)),
         };
-        return Ok((input, val.to_owned()));
-    };
+        Ok((input, val.to_owned()))
+    }
 }
 
 pub fn parse_commit(input: &[u8], sha: &str) -> Result<Commit, err::Error> {
@@ -170,14 +170,14 @@ pub fn parse_commit(input: &[u8], sha: &str) -> Result<Commit, err::Error> {
     let (input, _) = parse_seperator_line(input)?;
     let msg = from_utf8(input)?;
 
-    return Ok(Commit {
+    Ok(Commit {
         tree,
         parent,
         author,
         committer,
         msg: msg.to_owned(),
         sha: sha.to_owned(),
-    });
+    })
 }
 
 #[cfg(test)]

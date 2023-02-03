@@ -63,7 +63,7 @@ pub fn parse_git_head(input: &[u8]) -> Result<String, err::Error> {
     let (input, _key) = is_not(" ")(input)?;
     let (input, _) = space1(input)?;
     let (_, head_ref) = take_till1(is_newline)(input)?;
-    return Ok(from_utf8(head_ref)?.to_owned());
+    Ok(from_utf8(head_ref)?.to_owned())
 }
 
 fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
@@ -80,7 +80,7 @@ fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
         Ok(n) => n,
         _ => return Err(generic_nom_failure(input)),
     };
-    return Ok((input, output));
+    Ok((input, output))
 }
 
 #[derive(Debug, PartialEq)]
@@ -99,9 +99,7 @@ pub fn parse_git_obj<'a>(input: &'a [u8], sha: &'a str) -> Result<GitObj, err::E
     match obj {
         b"blob" => Ok(GitObj::Blob(blob::Blob::new(contents))),
         b"tree" => Ok(GitObj::Tree(tree::parse_git_tree(contents)?)),
-        b"commit" => {
-            return Ok(GitObj::Commit(commit::parse_commit(contents, sha)?));
-        }
+        b"commit" => Ok(GitObj::Commit(commit::parse_commit(contents, sha)?)),
         _ => Err(err::Error::GitUnrecognizedObjInHeader(
             from_utf8(&obj)?.to_string(),
         )),
@@ -115,7 +113,7 @@ pub fn read_object(sha: &str, repo: &Repo) -> Result<GitObj, err::Error> {
         Ok(res) => res,
         Err(e) => return Err(err::Error::InflatingGitObj(e)),
     };
-    return Ok(parse_git_obj(&decoded, &sha)?);
+    Ok(parse_git_obj(&decoded, &sha)?)
 }
 
 pub fn read_object_as_string(sha: &str, repo: &Repo) -> Result<String, err::Error> {
@@ -158,7 +156,7 @@ pub fn write_object(obj: GitObj, repo: Option<&Repo>) -> Result<sha1::Digest, er
             encoder.finish()?;
         }
     }
-    return Ok(digest);
+    Ok(digest)
 }
 
 #[cfg(test)]
@@ -209,7 +207,6 @@ mod object_mod_tests {
         } else {
             panic!("should be a Tree object")
         }
-
     }
 
     #[test]

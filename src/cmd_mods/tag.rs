@@ -9,7 +9,7 @@ use crate::cmd_mods::refs;
 pub fn list_all_tags(repo: &obj::Repo) -> Result<Vec<String>, err::Error> {
     let tags_path = repo.gitdir.join("refs/tags/");
     let tags = refs::gather_refs(Some(&tags_path), &repo)?;
-    return Ok(tags);
+    Ok(tags)
 }
 
 pub fn create_lightweight_tag(
@@ -26,7 +26,7 @@ pub fn create_lightweight_tag(
     let tag_path = repo.gitdir.join(format!("refs/tags/{}", tag_name));
     let mut tag = File::create(&tag_path)?;
     writeln!(tag, "{}", tag_sha)?;
-    return Ok(());
+    Ok(())
 }
 
 

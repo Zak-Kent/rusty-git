@@ -3,12 +3,12 @@ use crate::objects::{self as obj, commit};
 
 pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<commit::Commit, err::Error> {
     if let obj::GitObj::Commit(commit) = obj::read_object(sha, repo)? {
-        return Ok(commit);
+        Ok(commit)
     } else {
-        return Err(err::Error::GitUnexpectedInternalType(format!(
+        Err(err::Error::GitUnexpectedInternalType(format!(
             "{:?}",
             "Expected a commit object"
-        )));
+        )))
     }
 }
 
@@ -17,7 +17,7 @@ pub fn commit_to_string(commit: &commit::Commit) -> Result<String, err::Error> {
     output.push_str(&format!("commit: {}\n", commit.sha));
     output.push_str(&format!("Author: {}\n", commit.author));
     output.push_str(&format!("\n{}\n", commit.msg));
-    return Ok(output);
+    Ok(output)
 }
 
 pub fn follow_commits_to_root(
@@ -34,7 +34,7 @@ pub fn follow_commits_to_root(
         commit = read_commit(&parent, &repo)?;
         commit_log.push(commit.clone()); // add parent commits to log
     }
-    return Ok(commit_log);
+    Ok(commit_log)
 }
 
 pub fn commit_log_to_string(commit_log: Vec<commit::Commit>) -> Result<String, err::Error> {
@@ -42,5 +42,5 @@ pub fn commit_log_to_string(commit_log: Vec<commit::Commit>) -> Result<String, e
     for commit in commit_log {
         output.push_str(&commit_to_string(&commit)?);
     }
-    return Ok(output);
+    Ok(output)
 }

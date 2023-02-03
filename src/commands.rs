@@ -9,7 +9,7 @@ use crate::utils;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
-    return Ok(init::create_git_repo(&repo_path)?);
+    Ok(init::create_git_repo(&repo_path)?)
 }
 
 fn hash_object(
@@ -27,7 +27,7 @@ fn hash_object(
     } else {
         repo_arg = None;
     }
-    return Ok(Some(obj::write_object(blob, repo_arg)?.to_string()));
+    Ok(Some(obj::write_object(blob, repo_arg)?.to_string()))
 }
 
 // This version of cat-file differs from git's due to the fact git expects
@@ -36,7 +36,7 @@ fn hash_object(
 // the compressed file stored at the sha's location
 fn cat_file(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     let file_contents = obj::read_object_as_string(&sha, &repo)?;
-    return Ok(Some(file_contents));
+    Ok(Some(file_contents))
 }
 
 fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
@@ -46,7 +46,7 @@ fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     };
     let commit_log = log::follow_commits_to_root(&target_commit, &repo)?;
     let output = log::commit_log_to_string(commit_log)?;
-    return Ok(Some(output));
+    Ok(Some(output))
 }
 
 fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
@@ -54,9 +54,9 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
 
     if let obj::GitObj::Tree(tree) = obj {
         let output = lstree::git_tree_to_string(tree);
-        return Ok(Some(output));
+        Ok(Some(output))
     } else {
-        return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
+        Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)))
     }
 }
 
@@ -73,12 +73,12 @@ fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, er
         }
         _ => return Err(err::Error::GitCheckoutWrongObjType(format!("{:?}", obj))),
     }
-    return Ok(None);
+    Ok(None)
 }
 
 fn show_ref(repo: obj::Repo) -> Result<Option<String>, err::Error> {
     let refs = refs::gather_refs(None, &repo)?.concat();
-    return Ok(Some(refs));
+    Ok(Some(refs))
 }
 
 fn tag(
@@ -89,13 +89,13 @@ fn tag(
 ) -> Result<Option<String>, err::Error> {
     if let Some(n) = name {
         if *add_object {
-            return Err(err::Error::GitCreateTagObjectNotImplemented);
+            Err(err::Error::GitCreateTagObjectNotImplemented)
         } else {
             tag::create_lightweight_tag(n, object, &repo)?;
-            return Ok(None);
+            Ok(None)
         }
     } else {
-        return Ok(Some(tag::list_all_tags(&repo)?.concat()));
+        Ok(Some(tag::list_all_tags(&repo)?.concat()))
     }
 }
 
@@ -107,12 +107,12 @@ pub fn ls_files(repo: obj::Repo) -> Result<Option<String>, err::Error> {
         .into_iter()
         .map(|e| format!("{}\n", e.name))
         .collect();
-    return Ok(Some(file_names.concat()));
+    Ok(Some(file_names.concat()))
 }
 
 pub fn status(repo: obj::Repo) -> Result<Option<String>, err::Error> {
     let status = status::status(&repo)?;
-    return Ok(Some(status));
+    Ok(Some(status))
 }
 
 pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
@@ -132,7 +132,7 @@ pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Er
         let index = idx::Index::new(entry)?;
         add::write_index(index, &repo)?;
     }
-    return Ok(None);
+    Ok(None)
 }
 
 fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
@@ -140,7 +140,7 @@ fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     utils::git_check_for_rusty_git_allowed(&repo)?;
 
     cmt::commit(msg, repo)?;
-    return Ok(None);
+    Ok(None)
 }
 
 pub fn run_cmd(cmd: &cli::Cli, write_obj: bool) -> Result<Option<String>, err::Error> {

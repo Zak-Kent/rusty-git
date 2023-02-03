@@ -2,10 +2,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use crate::objects::{self as obj, blob, commit, tree};
 use crate::cmd_mods::status;
 use crate::error as err;
 use crate::index as idx;
+use crate::objects::{self as obj, blob, commit, tree};
 use crate::utils;
 
 pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
@@ -54,7 +54,6 @@ pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error
         // create will truncate the sha in the ref file if it previously existed
         let mut ref_file = File::create(ref_path)?;
         ref_file.write(commit.sha.as_bytes())?;
-
     } else {
         return Ok(Some(
             "Nothing in the stagging area!
@@ -64,5 +63,5 @@ pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error
         ));
     }
 
-    return Ok(None);
+    Ok(None)
 }
