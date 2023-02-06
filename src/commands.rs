@@ -9,7 +9,7 @@ use crate::utils;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
-    Ok(init::create_git_repo(&repo_path)?)
+    init::create_git_repo(&repo_path)
 }
 
 fn hash_object(

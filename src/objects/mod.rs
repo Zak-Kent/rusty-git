@@ -113,7 +113,7 @@ pub fn read_object(sha: &str, repo: &Repo) -> Result<GitObj, err::Error> {
         Ok(res) => res,
         Err(e) => return Err(err::Error::InflatingGitObj(e)),
     };
-    Ok(parse_git_obj(&decoded, sha)?)
+    parse_git_obj(&decoded, sha)
 }
 
 pub fn read_object_as_string(sha: &str, repo: &Repo) -> Result<String, err::Error> {
