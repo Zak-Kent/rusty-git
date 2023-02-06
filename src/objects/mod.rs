@@ -142,7 +142,7 @@ pub fn write_object(obj: GitObj, repo: Option<&Repo>) -> Result<sha1::Digest, er
         utils::git_check_for_rusty_git_allowed(repo)?;
         let hash = digest.to_string();
         let git_obj_dir = repo.worktree.join(format!(".git/objects/{}", &hash[..2]));
-        let git_obj_path = git_obj_dir.join(format!("{}", &hash[2..]));
+        let git_obj_path = git_obj_dir.join((&hash[2..]).to_string());
 
         if !git_obj_dir.exists() {
             create_dir(&git_obj_dir)?;

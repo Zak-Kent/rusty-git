@@ -244,7 +244,7 @@ mod object_tests {
 
         let new_file_name = "foo-aleady-exists-in-fake-index.txt";
         let new_file = File::create(repo.worktree.join(new_file_name));
-        writeln!(new_file.unwrap(), "{}", "hahaha").unwrap();
+        writeln!(new_file.unwrap(), "hahaha").unwrap();
 
         let updated_index = add::add_entry_to_index(&repo, new_file_name).unwrap();
         let mut updated_file_names: HashSet<String> = HashSet::new();
@@ -273,7 +273,7 @@ mod object_tests {
         let new_file_name = "foo.txt";
         let new_file_full_path = repo.worktree.join(new_file_name);
         let new_file = File::create(new_file_full_path.clone());
-        writeln!(new_file.unwrap(), "{}", "hahaha").unwrap();
+        writeln!(new_file.unwrap(), "hahaha").unwrap();
 
         let add_cmd = cli::Cli {
             command: cli::GitCmd::Add {

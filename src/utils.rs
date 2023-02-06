@@ -59,7 +59,7 @@ pub fn git_get_tree_from_commit(
     if let obj::GitObj::Tree(tree) = obj::read_object(&commit.tree, repo)? {
         Ok(tree)
     } else {
-        Err(err::Error::GitCheckoutWrongObjType(format!("{}", "not a tree obj")))
+        Err(err::Error::GitCheckoutWrongObjType("not a tree obj".to_string()))
     }
 }
 

@@ -76,14 +76,12 @@ pub fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<S
     // get set of (name, sha) pairs for each file in the index
     let index_files_n_shas: HashSet<(String, String)> = index_file_sha_pairs(&index.entries, None);
 
-    Ok(format!(
-        "{}",
-        index_files_n_shas
-            .difference(&commit_tree_files_n_shas)
-            .into_iter()
-            .map(|(name, _)| format!("modified: {name}\n"))
-            .collect::<String>()
-    ))
+    Ok(index_files_n_shas
+        .difference(&commit_tree_files_n_shas)
+        .into_iter()
+        .map(|(name, _)| format!("modified: {name}\n"))
+        .collect::<String>()
+        .to_string())
 }
 
 fn ignored_files(repo: &obj::Repo) -> Result<HashSet<PathBuf>, err::Error> {
@@ -169,23 +167,19 @@ fn local_changes_not_staged_for_commit_or_untracked(
     let idx_name_mtime_pairs: HashSet<(String, DateTime<Utc>)> = HashSet::from_iter(names_mtimes);
     let worktree_name_mtime_pairs = gather_mtime_from_worktree(None, repo)?;
 
-    let not_staged = format!(
-        "{}",
-        idx_name_mtime_pairs
-            .difference(&worktree_name_mtime_pairs)
-            .into_iter()
-            .map(|(name, _)| format!("modified: {name}\n"))
-            .collect::<String>()
-    );
+    let not_staged = idx_name_mtime_pairs
+        .difference(&worktree_name_mtime_pairs)
+        .into_iter()
+        .map(|(name, _)| format!("modified: {name}\n"))
+        .collect::<String>()
+        .to_string();
 
-    let not_tracked = format!(
-        "{}",
-        worktree_name_mtime_pairs
-            .difference(&idx_name_mtime_pairs)
-            .into_iter()
-            .map(|(name, _)| format!("{name}\n"))
-            .collect::<String>()
-    );
+    let not_tracked = worktree_name_mtime_pairs
+        .difference(&idx_name_mtime_pairs)
+        .into_iter()
+        .map(|(name, _)| format!("{name}\n"))
+        .collect::<String>()
+        .to_string();
 
     Ok(LocalChanges {
         not_staged,

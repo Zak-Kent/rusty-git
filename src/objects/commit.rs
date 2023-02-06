@@ -39,7 +39,7 @@ pub struct User {
 
 impl fmt::Display for User {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{} {} {}\n", self.name, self.email, self.timestamp)
+        writeln!(f, "{} {} {}", self.name, self.email, self.timestamp)
     }
 }
 
