@@ -101,23 +101,23 @@ pub fn parse_git_obj<'a>(input: &'a [u8], sha: &'a str) -> Result<GitObj, err::E
         b"tree" => Ok(GitObj::Tree(tree::parse_git_tree(contents)?)),
         b"commit" => Ok(GitObj::Commit(commit::parse_commit(contents, sha)?)),
         _ => Err(err::Error::GitUnrecognizedObjInHeader(
-            from_utf8(&obj)?.to_string(),
+            from_utf8(obj)?.to_string(),
         )),
     }
 }
 
 pub fn read_object(sha: &str, repo: &Repo) -> Result<GitObj, err::Error> {
-    let obj_path = utils::git_obj_path_from_sha(sha, &repo)?;
+    let obj_path = utils::git_obj_path_from_sha(sha, repo)?;
     let contents = read(&obj_path)?;
     let decoded = match inflate_bytes_zlib(&contents) {
         Ok(res) => res,
         Err(e) => return Err(err::Error::InflatingGitObj(e)),
     };
-    Ok(parse_git_obj(&decoded, &sha)?)
+    Ok(parse_git_obj(&decoded, sha)?)
 }
 
 pub fn read_object_as_string(sha: &str, repo: &Repo) -> Result<String, err::Error> {
-    let gitobject = read_object(sha, &repo)?;
+    let gitobject = read_object(sha, repo)?;
     match gitobject {
         GitObj::Blob(blob) => Ok(format!("{}", blob)),
         GitObj::Tree(tree) => Ok(format!("{}", tree)),

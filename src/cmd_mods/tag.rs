@@ -8,7 +8,7 @@ use crate::cmd_mods::refs;
 
 pub fn list_all_tags(repo: &obj::Repo) -> Result<Vec<String>, err::Error> {
     let tags_path = repo.gitdir.join("refs/tags/");
-    let tags = refs::gather_refs(Some(&tags_path), &repo)?;
+    let tags = refs::gather_refs(Some(&tags_path), repo)?;
     Ok(tags)
 }
 

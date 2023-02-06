@@ -24,14 +24,14 @@ pub fn follow_commits_to_root(
     sha: &str,
     repo: &obj::Repo,
 ) -> Result<Vec<commit::Commit>, err::Error> {
-    let mut commit = read_commit(sha, &repo)?;
+    let mut commit = read_commit(sha, repo)?;
     let mut commit_log: Vec<commit::Commit> = Vec::new();
 
     // add the first commit to log
     commit_log.push(commit.clone());
 
     while let Some(parent) = commit.parent {
-        commit = read_commit(&parent, &repo)?;
+        commit = read_commit(&parent, repo)?;
         commit_log.push(commit.clone()); // add parent commits to log
     }
     Ok(commit_log)

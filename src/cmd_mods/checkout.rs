@@ -30,7 +30,7 @@ pub fn dir_ok_for_checkout(path: &Path) -> Result<bool, err::Error> {
 
 pub fn checkout_tree(tree: tree::Tree, path: &Path, repo: &obj::Repo) -> Result<(), err::Error> {
     for leaf in tree.contents {
-        let obj = obj::read_object(&utils::get_sha_from_binary(&leaf.sha), &repo)?;
+        let obj = obj::read_object(&utils::get_sha_from_binary(&leaf.sha), repo)?;
         match obj {
             obj::GitObj::Tree(sub_tree) => {
                 let dir_path = path.join(&leaf.path);

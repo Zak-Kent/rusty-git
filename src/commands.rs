@@ -62,7 +62,7 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
 
 fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     checkout::dir_ok_for_checkout(dir)?;
-    let obj = obj::read_object(&sha, &repo)?;
+    let obj = obj::read_object(sha, &repo)?;
     match obj {
         obj::GitObj::Tree(tree) => {
             checkout::checkout_tree(tree, dir, &repo)?;
@@ -155,7 +155,7 @@ pub fn run_cmd(cmd: &cli::Cli, write_obj: bool) -> Result<Option<String>, err::E
     }
 
     match command {
-        cli::GitCmd::Init => run_init(&cmd),
+        cli::GitCmd::Init => run_init(cmd),
         cli::GitCmd::HashObject { path } => hash_object(path.to_owned(), repo.unwrap(), write_obj),
         cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo.unwrap()),
         cli::GitCmd::Log { sha } => log(sha.to_owned(), repo.unwrap()),
