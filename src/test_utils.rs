@@ -29,7 +29,7 @@ pub fn test_gitdir() -> Result<TempDir, err::Error> {
 pub fn test_gitdir_with_index() -> Result<TempDir, err::Error> {
     let dir = test_gitdir()?;
     let mut index = File::create(dir.path().join(".git/index"))?;
-    index.write(&fake_index_without_extension_info())?;
+    index.write_all(&fake_index_without_extension_info())?;
     Ok(dir)
 }
 

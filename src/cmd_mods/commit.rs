@@ -53,7 +53,7 @@ pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error
         let ref_path = utils::git_head_ref_path(&repo)?;
         // create will truncate the sha in the ref file if it previously existed
         let mut ref_file = File::create(ref_path)?;
-        ref_file.write(commit.sha.as_bytes())?;
+        ref_file.write_all(commit.sha.as_bytes())?;
     } else {
         return Ok(Some(
             "Nothing in the stagging area!

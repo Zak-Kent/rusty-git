@@ -72,7 +72,7 @@ pub fn add_entry_to_index(repo: &obj::Repo, file_name: &str) -> Result<idx::Inde
 pub fn write_index(index: idx::Index, repo: &obj::Repo) -> Result<(), err::Error> {
     // the File::create call will truncate the index
     let mut index_file = File::create(repo.gitdir.join("index"))?;
-    index_file.write(&index.as_bytes())?;
+    index_file.write_all(&index.as_bytes())?;
     Ok(())
 }
 
