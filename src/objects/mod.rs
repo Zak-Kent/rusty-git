@@ -31,7 +31,7 @@ pub struct Repo {
 impl Repo {
     // new expects an existing git repo
     pub fn new(path: PathBuf) -> Result<Repo, err::Error> {
-        let base_path = utils::git_repo_or_err(&PathBuf::from(path))?;
+        let base_path = utils::git_repo_or_err(&path)?;
         let gitdir = utils::build_path(base_path.clone(), ".git")?;
         let gitconf_path = utils::build_path(gitdir.clone(), "config")?;
         let gitconf = fs::read_to_string(gitconf_path)?;

@@ -19,7 +19,7 @@ pub fn parse_git_tree_leaf(input: &[u8]) -> IResult<&[u8], ParsedLeaf> {
     let (input, path) = take_till1(|c| c == b'\x00')(input)?;
     let (input, _) = tag(b"\x00")(input)?;
     let (input, bsha) = take(20usize)(input)?;
-    Ok((input, ParsedLeaf::from((mode, path, bsha))))
+    Ok((input, (mode, path, bsha)))
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -17,7 +17,7 @@ pub fn file_to_index_entry(
 
     let c_time_dt;
     if let Some(ct) = Utc
-        .timestamp_opt(md.ctime().into(), md.ctime_nsec() as u32)
+        .timestamp_opt(md.ctime(), md.ctime_nsec() as u32)
         .single()
     {
         c_time_dt = ct;
@@ -27,7 +27,7 @@ pub fn file_to_index_entry(
 
     let m_time_dt;
     if let Some(mt) = Utc
-        .timestamp_opt(md.ctime().into(), md.ctime_nsec() as u32)
+        .timestamp_opt(md.ctime(), md.ctime_nsec() as u32)
         .single()
     {
         m_time_dt = mt;
