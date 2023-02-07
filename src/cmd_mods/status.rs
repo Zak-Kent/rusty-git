@@ -80,8 +80,7 @@ pub fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<S
         .difference(&commit_tree_files_n_shas)
         .into_iter()
         .map(|(name, _)| format!("modified: {name}\n"))
-        .collect::<String>()
-        .to_string())
+        .collect::<String>())
 }
 
 fn ignored_files(repo: &obj::Repo) -> Result<HashSet<PathBuf>, err::Error> {
@@ -169,15 +168,13 @@ fn local_changes_not_staged_for_commit_or_untracked(
         .difference(&worktree_name_mtime_pairs)
         .into_iter()
         .map(|(name, _)| format!("modified: {name}\n"))
-        .collect::<String>()
-        .to_string();
+        .collect::<String>();
 
     let not_tracked = worktree_name_mtime_pairs
         .difference(&idx_name_mtime_pairs)
         .into_iter()
         .map(|(name, _)| format!("{name}\n"))
-        .collect::<String>()
-        .to_string();
+        .collect::<String>();
 
     Ok(LocalChanges {
         not_staged,

@@ -27,7 +27,7 @@ pub fn git_obj_path_from_sha(sha: &str, repo: &obj::Repo) -> Result<PathBuf, err
         .join(format!("objects/{}/{}", &sha[..2], &sha[2..]));
 
     if obj_path.exists() {
-        Ok(obj_path.to_path_buf())
+        Ok(obj_path)
     } else {
         Err(err::Error::GitObjPathDoesntExist(
             obj_path.display().to_string(),

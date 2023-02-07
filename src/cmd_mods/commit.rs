@@ -40,10 +40,10 @@ pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error
 
         let mut commit = commit::Commit {
             tree: tree_sha.to_string(),
-            parent: parent.clone(),
+            parent,
             author: commit::create_dummy_user(),
             committer: commit::create_dummy_user(),
-            msg: msg.clone(),
+            msg,
             sha: "".to_string(),
         };
         commit.calc_and_update_sha();

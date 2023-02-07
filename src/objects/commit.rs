@@ -71,9 +71,9 @@ fn parse_user_bytes(input: &[u8]) -> IResult<&[u8], User> {
     Ok((
         input,
         User {
-            name: name.to_owned(),
-            email: email.to_owned(),
-            timestamp: timestamp.to_owned(),
+            name,
+            email,
+            timestamp,
         },
     ))
 }

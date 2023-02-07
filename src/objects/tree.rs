@@ -117,7 +117,7 @@ fn entry_to_treeleaf(entry: &idx::IndexEntry) -> TreeLeaf {
 }
 
 pub fn index_to_tree(index: &idx::Index) -> Tree {
-    let leaves = index.entries.iter().map(|e| entry_to_treeleaf(e)).collect();
+    let leaves = index.entries.iter().map(entry_to_treeleaf).collect();
     Tree { contents: leaves }
 }
 

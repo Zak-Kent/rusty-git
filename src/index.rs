@@ -171,7 +171,7 @@ impl obj::AsBytes for Index {
     fn as_bytes(&self) -> Vec<u8> {
         let header = [
             "DIRC".as_bytes(),
-            &[0x00, 0x00, 0x00, 0x02].to_vec(),
+            [0x00, 0x00, 0x00, 0x02].as_ref(),
             &(self.entries.len() as u32).to_be_bytes(),
         ]
         .concat();
