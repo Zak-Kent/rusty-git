@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::cli;
-use crate::cmd_mods::{add, checkout, init, log, lstree, refs, status, tag, commit as cmt};
+use crate::cmd_mods::{add, checkout, commit as cmt, init, log, lstree, refs, status, tag};
 use crate::error as err;
 use crate::index as idx;
 use crate::objects::{self as obj, blob};
@@ -21,12 +21,8 @@ fn hash_object(
     let blob = blob::blob_from_path(bpath)?;
 
     // by passing None to write_obj it will only return the hash, no write
-    let repo_arg;
-    if write_obj {
-        repo_arg = Some(&repo);
-    } else {
-        repo_arg = None;
-    }
+    let repo_arg = if write_obj { Some(&repo) } else { None };
+
     Ok(Some(obj::write_object(blob, repo_arg)?.to_string()))
 }
 
@@ -145,14 +141,13 @@ fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
 
 pub fn run_cmd(cmd: &cli::Cli, write_obj: bool) -> Result<Option<String>, err::Error> {
     let command = &cmd.command;
-    let repo: Option<obj::Repo>;
 
     // unwrap calls to repo below safe because of this check
-    if cmd.command != cli::GitCmd::Init {
-        repo = Some(obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?);
+    let repo: Option<obj::Repo> = if cmd.command != cli::GitCmd::Init {
+        Some(obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?)
     } else {
-        repo = None;
-    }
+        None
+    };
 
     match command {
         cli::GitCmd::Init => run_init(cmd),
