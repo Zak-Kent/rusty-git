@@ -16,7 +16,7 @@ pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error
 
         // check if there are staged files that need to be committed
         let files_to_commit = status::staged_but_not_commited(&repo, &index)?;
-        if files_to_commit == "" {
+        if files_to_commit.is_empty() {
             println!("Nothing added to commit! Run 'rusty-git status' to see state of index.");
             return Ok(None);
         }

@@ -94,7 +94,7 @@ fn ignored_files(repo: &obj::Repo) -> Result<HashSet<PathBuf>, err::Error> {
 
     let mut output: HashSet<PathBuf> = HashSet::new();
     for path in from_utf8(&gitignore)?.split('\n') {
-        if path == "" {
+        if path.is_empty() {
             continue;
         } else if let Some(p) = path.strip_prefix('/') {
             output.insert(PathBuf::from(p.to_owned()));
