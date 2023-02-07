@@ -22,7 +22,7 @@ pub fn file_to_index_entry(
     {
         c_time_dt = ct;
     } else {
-        return Err(err::Error::TimestampConversionError);
+        return Err(err::Error::TimestampConversion);
     };
 
     let m_time_dt;
@@ -32,7 +32,7 @@ pub fn file_to_index_entry(
     {
         m_time_dt = mt;
     } else {
-        return Err(err::Error::TimestampConversionError);
+        return Err(err::Error::TimestampConversion);
     };
 
     let blob = blob::blob_from_path(file)?;
