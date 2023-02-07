@@ -97,12 +97,10 @@ fn ignored_files(repo: &obj::Repo) -> Result<HashSet<PathBuf>, err::Error> {
     for path in from_utf8(&gitignore)?.split('\n') {
         if path == "" {
             continue;
+        } else if let Some(p) = path.strip_prefix('/') {
+            output.insert(PathBuf::from(p.to_owned()));
         } else {
-            if path.starts_with("/") {
-                output.insert(PathBuf::from(path[1..].to_owned()));
-            } else {
-                output.insert(PathBuf::from(path.to_owned()));
-            }
+            output.insert(PathBuf::from(path.to_owned()));
         }
     }
     Ok(output)
