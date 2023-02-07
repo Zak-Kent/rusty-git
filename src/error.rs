@@ -1,6 +1,6 @@
 use std::{num::ParseIntError, path::StripPrefixError, fmt::Debug};
 
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum Error {
     // program errors related to git
     #[error("Not a Git repo")]

@@ -6,7 +6,7 @@ use std::str::from_utf8;
 use super::{AsBytes, GitObj};
 use crate::error as err;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub struct Blob {
     pub contents: Vec<u8>,
     pub len: usize,

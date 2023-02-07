@@ -83,7 +83,7 @@ fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
     Ok((input, output))
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum GitObj {
     Blob(blob::Blob),
     Tree(tree::Tree),

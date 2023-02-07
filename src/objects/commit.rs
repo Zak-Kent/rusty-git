@@ -30,7 +30,7 @@ pub fn create_dummy_user() -> User {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct User {
     pub name: String,
     pub email: String,
@@ -78,7 +78,7 @@ fn parse_user_bytes(input: &[u8]) -> IResult<&[u8], User> {
     ))
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Commit {
     pub tree: String,
     pub parent: Option<String>,

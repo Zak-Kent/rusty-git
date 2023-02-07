@@ -22,7 +22,7 @@ pub fn parse_git_tree_leaf(input: &[u8]) -> IResult<&[u8], ParsedLeaf> {
     Ok((input, (mode, path, bsha)))
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TreeLeaf {
     pub mode: String,
     pub path: String,
@@ -52,7 +52,7 @@ impl AsBytes for TreeLeaf {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Tree {
     pub contents: Vec<TreeLeaf>,
 }
