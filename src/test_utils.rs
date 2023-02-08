@@ -3,7 +3,7 @@ use std::io::{Error, Write};
 use std::path::Path;
 use tempfile::{tempdir, TempDir};
 
-use crate::cmd_mods::init;
+use crate::cmds::init;
 use crate::error as err;
 use crate::objects as obj;
 

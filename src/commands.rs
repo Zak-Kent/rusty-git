@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::cli;
-use crate::cmd_mods::{add, checkout, commit as cmt, init, log, lstree, refs, status, tag};
+use crate::cmds::{add, checkout, commit as cmt, init, log, lstree, refs, status, tag};
 use crate::error as err;
 use crate::index as idx;
 use crate::objects::{self as obj, blob};

@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use crate::cmd_mods::status;
+use crate::cmds::status;
 use crate::error as err;
 use crate::index as idx;
 use crate::objects::{self as obj, blob, commit, tree};

@@ -8,7 +8,7 @@ use std::fmt;
 use std::str::from_utf8;
 
 use super::{AsBytes, NameSha};
-use crate::{cmd_mods::lstree, error as err, index as idx, utils};
+use crate::{cmds::lstree, error as err, index as idx, utils};
 
 // a single entry in a Git tree obj file
 type ParsedLeaf<'a> = (&'a [u8], &'a [u8], &'a [u8]);

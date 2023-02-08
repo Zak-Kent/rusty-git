@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io::Write;
 
-use crate::cmd_mods::refs;
+use crate::cmds::refs;
 use crate::error as err;
 use crate::objects as obj;
 use crate::utils;
