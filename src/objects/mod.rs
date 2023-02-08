@@ -87,7 +87,7 @@ fn parse_obj_len(input: &[u8]) -> IResult<&[u8], usize> {
 pub enum GitObj {
     Blob(blob::Blob),
     Tree(tree::Tree),
-    Commit(commit::Commit),
+    Commit(Box<commit::Commit>),
 }
 
 pub fn parse_git_obj<'a>(input: &'a [u8], sha: &'a str) -> Result<GitObj, err::Error> {
@@ -99,7 +99,7 @@ pub fn parse_git_obj<'a>(input: &'a [u8], sha: &'a str) -> Result<GitObj, err::E
     match obj {
         b"blob" => Ok(GitObj::Blob(blob::Blob::new(contents))),
         b"tree" => Ok(GitObj::Tree(tree::parse_git_tree(contents)?)),
-        b"commit" => Ok(GitObj::Commit(commit::parse_commit(contents, sha)?)),
+        b"commit" => Ok(GitObj::Commit(Box::new(commit::parse_commit(contents, sha)?))),
         _ => Err(err::Error::GitUnrecognizedObjInHeader(
             from_utf8(obj)?.to_string(),
         )),

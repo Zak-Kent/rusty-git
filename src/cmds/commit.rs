@@ -47,7 +47,7 @@ pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error
             sha: "".to_string(),
         };
         commit.calc_and_update_sha();
-        obj::write_object(obj::GitObj::Commit(commit.clone()), Some(&repo))?;
+        obj::write_object(obj::GitObj::Commit(Box::new(commit.clone())), Some(&repo))?;
 
         // write commit to ref path in HEAD
         let ref_path = utils::git_head_ref_path(&repo)?;

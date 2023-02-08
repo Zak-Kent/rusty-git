@@ -5,7 +5,7 @@ use crate::objects::{self as obj, commit};
 
 pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<commit::Commit, err::Error> {
     if let obj::GitObj::Commit(commit) = obj::read_object(sha, repo)? {
-        Ok(commit)
+        Ok(*commit)
     } else {
         Err(err::Error::GitUnexpectedInternalType(format!(
             "{:?}",

@@ -57,7 +57,7 @@ pub fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<S
     if let Ok(hsha) = head_sha {
         // get a set of (name, sha) pairs for each file in the last commit object
         if let obj::GitObj::Commit(commit) = obj::read_object(&hsha, repo)? {
-            let commit_tree = utils::git_get_tree_from_commit(commit, repo)?;
+            let commit_tree = utils::git_get_tree_from_commit(*commit, repo)?;
             commit_tree_files_n_shas = tree_file_sha_pairs(commit_tree, None, repo)?;
         } else {
             return Err(err::Error::GitUnexpectedInternalType(format!(

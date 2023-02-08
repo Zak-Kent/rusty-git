@@ -64,7 +64,7 @@ fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, er
             checkout::checkout_tree(tree, dir, &repo)?;
         }
         obj::GitObj::Commit(commit) => {
-            let tree = utils::git_get_tree_from_commit(commit, &repo)?;
+            let tree = utils::git_get_tree_from_commit(*commit, &repo)?;
             checkout::checkout_tree(tree, dir, &repo)?;
         }
         _ => return Err(err::Error::GitCheckoutWrongObjType(format!("{:?}", obj))),
