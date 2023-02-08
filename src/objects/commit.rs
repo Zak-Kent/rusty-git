@@ -109,8 +109,8 @@ impl fmt::Display for Commit {
                 "tree {}\nparent {}\nauthor {}committer {}\n{}",
                 self.tree,
                 p,
-                format!("{}", self.author),
-                format!("{}", self.committer),
+                self.author,
+                self.committer,
                 self.msg
             )
         } else {
@@ -118,8 +118,8 @@ impl fmt::Display for Commit {
                 f,
                 "tree {}\nauthor {}committer {}\n{}",
                 self.tree,
-                format!("{}", self.author),
-                format!("{}", self.committer),
+                self.author,
+                self.committer,
                 self.msg
             )
         }

@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use crate::error as err;
 use crate::objects::{self as obj, commit};
 
@@ -14,9 +16,9 @@ pub fn read_commit(sha: &str, repo: &obj::Repo) -> Result<commit::Commit, err::E
 
 pub fn commit_to_string(commit: &commit::Commit) -> Result<String, err::Error> {
     let mut output = String::new();
-    output.push_str(&format!("commit: {}\n", commit.sha));
-    output.push_str(&format!("Author: {}\n", commit.author));
-    output.push_str(&format!("\n{}\n", commit.msg));
+    writeln!(output, "Commit: {}", commit.sha)?;
+    writeln!(output, "Author: {}", commit.author)?;
+    writeln!(output, "{}\n", commit.msg)?;
     Ok(output)
 }
 

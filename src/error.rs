@@ -60,6 +60,8 @@ pub enum Error {
     Nom(String),
     #[error("StripPrefixError: {0}")]
     StripPrefix(#[from] StripPrefixError),
+    #[error("std::fmt::Error: {0}")]
+    Fmt(#[from] std::fmt::Error),
 }
 
 // the thiserror lib automatically does similar error

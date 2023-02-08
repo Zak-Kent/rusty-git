@@ -44,7 +44,7 @@ impl fmt::Display for Blob {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let output = from_utf8(&self.contents);
         if let Err(utf8_conversion_err) = output {
-            println!("Error converting blob to utf8: {}", utf8_conversion_err);
+            writeln!(f, "Error converting blob to utf8: {}", utf8_conversion_err).unwrap();
             Err(fmt::Error)
         } else {
             write!(f, "{}", output.unwrap())
