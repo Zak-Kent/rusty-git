@@ -21,7 +21,7 @@ fn parse_seperator_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
 
 pub fn create_dummy_user() -> User {
     let local = offset::Local::now();
-    let local_tz = local.offset().to_string().replace(":", "");
+    let local_tz = local.offset().to_string().replace(':', "");
     let local_ts = local.timestamp().to_string();
     User {
         name: "foo_name".to_string(),

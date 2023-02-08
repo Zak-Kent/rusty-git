@@ -134,7 +134,7 @@ fn gather_mtime_from_worktree(
             file_mtime_pairs.extend(inner_vals);
         } else {
             let node_mtime = node_md.modified()?;
-            let node_dt: DateTime<Utc> = node_mtime.clone().into();
+            let node_dt: DateTime<Utc> = node_mtime.into();
             let clean_node_path = node_path.strip_prefix(&repo.worktree)?;
             if let Some(node_path) = clean_node_path.to_str() {
                 let file_output = (node_path.to_owned(), node_dt);
