@@ -9,7 +9,7 @@ pub fn resolve_ref(ref_path: &Path, repo: &obj::Repo) -> Result<String, err::Err
     if "ref: " == &data[..5] {
         resolve_ref(&PathBuf::from(data[5..].trim()), repo)
     } else {
-        return Ok(data.trim().to_owned());
+        Ok(data.trim().to_owned())
     }
 }
 
@@ -41,7 +41,7 @@ pub fn gather_refs(path: Option<&Path>, repo: &obj::Repo) -> Result<Vec<String>,
             };
         }
     }
-    return Ok(all_refs);
+    Ok(all_refs)
 }
 
 #[cfg(test)]

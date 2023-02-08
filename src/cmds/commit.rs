@@ -2,10 +2,10 @@ use std::fs::File;
 use std::io::Write;
 use std::path::PathBuf;
 
-use crate::objects::{self as obj, blob, commit, tree};
-use crate::cmd_mods::status;
+use crate::cmds::status;
 use crate::error as err;
 use crate::index as idx;
+use crate::objects::{self as obj, blob, commit, tree};
 use crate::utils;
 
 pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
@@ -16,7 +16,7 @@ pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error
 
         // check if there are staged files that need to be committed
         let files_to_commit = status::staged_but_not_commited(&repo, &index)?;
-        if files_to_commit == "" {
+        if files_to_commit.is_empty() {
             println!("Nothing added to commit! Run 'rusty-git status' to see state of index.");
             return Ok(None);
         }
@@ -40,21 +40,20 @@ pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error
 
         let mut commit = commit::Commit {
             tree: tree_sha.to_string(),
-            parent: parent.clone(),
+            parent,
             author: commit::create_dummy_user(),
             committer: commit::create_dummy_user(),
-            msg: msg.clone(),
+            msg,
             sha: "".to_string(),
         };
         commit.calc_and_update_sha();
-        obj::write_object(obj::GitObj::Commit(commit.clone()), Some(&repo))?;
+        obj::write_object(obj::GitObj::Commit(Box::new(commit.clone())), Some(&repo))?;
 
         // write commit to ref path in HEAD
         let ref_path = utils::git_head_ref_path(&repo)?;
         // create will truncate the sha in the ref file if it previously existed
         let mut ref_file = File::create(ref_path)?;
-        ref_file.write(commit.sha.as_bytes())?;
-
+        ref_file.write_all(commit.sha.as_bytes())?;
     } else {
         return Ok(Some(
             "Nothing in the stagging area!
@@ -64,5 +63,5 @@ pub fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error
         ));
     }
 
-    return Ok(None);
+    Ok(None)
 }

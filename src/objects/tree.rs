@@ -8,7 +8,7 @@ use std::fmt;
 use std::str::from_utf8;
 
 use super::{AsBytes, NameSha};
-use crate::{cmd_mods::lstree, error as err, index as idx, utils};
+use crate::{cmds::lstree, error as err, index as idx, utils};
 
 // a single entry in a Git tree obj file
 type ParsedLeaf<'a> = (&'a [u8], &'a [u8], &'a [u8]);
@@ -19,10 +19,10 @@ pub fn parse_git_tree_leaf(input: &[u8]) -> IResult<&[u8], ParsedLeaf> {
     let (input, path) = take_till1(|c| c == b'\x00')(input)?;
     let (input, _) = tag(b"\x00")(input)?;
     let (input, bsha) = take(20usize)(input)?;
-    return Ok((input, ParsedLeaf::from((mode, path, bsha))));
+    Ok((input, (mode, path, bsha)))
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct TreeLeaf {
     pub mode: String,
     pub path: String,
@@ -33,9 +33,9 @@ impl NameSha for TreeLeaf {
     fn get_name_and_sha(&self, name_prefix: Option<String>) -> (String, String) {
         let sha = utils::get_sha_from_binary(&self.sha);
         if let Some(prefix) = name_prefix {
-            return (format!("{prefix}/{}", self.path), sha);
+            (format!("{prefix}/{}", self.path), sha)
         } else {
-            return (self.path.clone(), sha);
+            (self.path.clone(), sha)
         }
     }
 }
@@ -48,11 +48,11 @@ impl AsBytes for TreeLeaf {
         let mut leaf: Vec<u8> = Vec::new();
         leaf.extend_from_slice(&file_info);
         leaf.extend_from_slice(&self.sha);
-        return leaf;
+        leaf
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Tree {
     pub contents: Vec<TreeLeaf>,
 }
@@ -77,7 +77,7 @@ impl AsBytes for Tree {
         .collect();
 
         output_bytes.append(&mut tree_body);
-        return output_bytes;
+        output_bytes
     }
 }
 
@@ -99,7 +99,7 @@ pub fn parse_git_tree(input: &[u8]) -> Result<Tree, err::Error> {
         })
     }
 
-    return Ok(Tree { contents });
+    Ok(Tree { contents })
 }
 
 fn entry_to_treeleaf(entry: &idx::IndexEntry) -> TreeLeaf {
@@ -109,16 +109,16 @@ fn entry_to_treeleaf(entry: &idx::IndexEntry) -> TreeLeaf {
     // the mode encoding is different between index entries and tree entries
     // in tree entries it is stored as the ASCII encoding of the octal encoding
     // and in index entries it's stored as a BE byte order 32 bit int.
-    return TreeLeaf {
+    TreeLeaf {
         mode: format!("{:o}", mode), // format the 32bit int to octal String
         path: name.to_string(),
         sha: sha.to_vec(),
-    };
+    }
 }
 
 pub fn index_to_tree(index: &idx::Index) -> Tree {
-    let leaves = index.entries.iter().map(|e| entry_to_treeleaf(e)).collect();
-    return Tree { contents: leaves };
+    let leaves = index.entries.iter().map(entry_to_treeleaf).collect();
+    Tree { contents: leaves }
 }
 
 #[cfg(test)]

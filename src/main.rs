@@ -7,7 +7,7 @@ mod error;
 mod index;
 mod test_utils;
 mod utils;
-mod cmd_mods;
+mod cmds;
 mod objects;
 
 use crate::commands as cmd;

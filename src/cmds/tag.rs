@@ -1,15 +1,15 @@
 use std::fs::File;
 use std::io::Write;
 
+use crate::cmds::refs;
 use crate::error as err;
 use crate::objects as obj;
 use crate::utils;
-use crate::cmd_mods::refs;
 
 pub fn list_all_tags(repo: &obj::Repo) -> Result<Vec<String>, err::Error> {
     let tags_path = repo.gitdir.join("refs/tags/");
-    let tags = refs::gather_refs(Some(&tags_path), &repo)?;
-    return Ok(tags);
+    let tags = refs::gather_refs(Some(&tags_path), repo)?;
+    Ok(tags)
 }
 
 pub fn create_lightweight_tag(
@@ -17,18 +17,16 @@ pub fn create_lightweight_tag(
     object: &String,
     repo: &obj::Repo,
 ) -> Result<(), err::Error> {
-    let tag_sha: String;
-    if object == "HEAD" {
-        tag_sha = utils::git_sha_from_head(repo)?;
+    let tag_sha: String = if object == "HEAD" {
+        utils::git_sha_from_head(repo)?
     } else {
-        tag_sha = object.to_owned();
+        object.to_owned()
     };
     let tag_path = repo.gitdir.join(format!("refs/tags/{}", tag_name));
     let mut tag = File::create(&tag_path)?;
     writeln!(tag, "{}", tag_sha)?;
-    return Ok(());
+    Ok(())
 }
-
 
 #[cfg(test)]
 mod utils_tests {
@@ -47,5 +45,4 @@ mod utils_tests {
         let expected = format!("{tag_sha} refs/tags/foo\n");
         assert_eq!(&expected, tag.first().unwrap());
     }
-
 }

@@ -15,7 +15,7 @@ pub fn is_git_repo(path: &Path) -> bool {
 pub fn git_repo_or_err(path: &Path) -> Result<PathBuf, err::Error> {
     let gitrepo = is_git_repo(path);
     if gitrepo {
-        return Ok(path.to_owned());
+        Ok(path.to_owned())
     } else {
         Err(err::Error::GitNotARepo)
     }
@@ -27,11 +27,11 @@ pub fn git_obj_path_from_sha(sha: &str, repo: &obj::Repo) -> Result<PathBuf, err
         .join(format!("objects/{}/{}", &sha[..2], &sha[2..]));
 
     if obj_path.exists() {
-        return Ok(obj_path.to_path_buf());
+        Ok(obj_path)
     } else {
-        return Err(err::Error::GitObjPathDoesntExist(
+        Err(err::Error::GitObjPathDoesntExist(
             obj_path.display().to_string(),
-        ));
+        ))
     }
 }
 
@@ -39,17 +39,17 @@ pub fn git_head_ref_path(repo: &obj::Repo) -> Result<PathBuf, err::Error> {
     let head_path = repo.gitdir.join("HEAD");
     let head = read(head_path)?;
     let head_ref = obj::parse_git_head(&head)?;
-    return Ok(repo.gitdir.join(head_ref))
+    Ok(repo.gitdir.join(head_ref))
 }
 
 pub fn git_sha_from_head(repo: &obj::Repo) -> Result<String, err::Error> {
     let sha_path = git_head_ref_path(repo)?;
     if sha_path.exists() {
         let sha = read_to_string(&sha_path)?.trim().to_owned();
-        return Ok(sha);
+        Ok(sha)
     } else {
-        return Err(err::Error::GitNoCommitsExistYet);
-    };
+        Err(err::Error::GitNoCommitsExistYet)
+    }
 }
 
 pub fn git_get_tree_from_commit(
@@ -57,19 +57,19 @@ pub fn git_get_tree_from_commit(
     repo: &obj::Repo,
 ) -> Result<tree::Tree, err::Error> {
     if let obj::GitObj::Tree(tree) = obj::read_object(&commit.tree, repo)? {
-        return Ok(tree);
+        Ok(tree)
     } else {
-        return Err(err::Error::GitCheckoutWrongObjType(format!("{}", "not a tree obj")));
+        Err(err::Error::GitCheckoutWrongObjType("not a tree obj".to_string()))
     }
 }
 
 pub fn git_read_index(repo: &obj::Repo) -> Result<Vec<u8>, err::Error> {
     let index_path = repo.gitdir.join("index");
-    return Ok(read(index_path)?);
+    Ok(read(index_path)?)
 }
 
 pub fn git_index_exists(repo: &obj::Repo) -> bool {
-    return repo.gitdir.clone().join("index").exists();
+    repo.gitdir.clone().join("index").exists()
 }
 
 pub fn git_check_for_rusty_git_allowed(repo: &obj::Repo) -> Result<bool, err::Error> {
@@ -86,9 +86,9 @@ pub fn git_check_for_rusty_git_allowed(repo: &obj::Repo) -> Result<bool, err::Er
     }
 
     if rusty_git_allowed {
-        return Ok(rusty_git_allowed);
+        Ok(rusty_git_allowed)
     } else {
-        return Err(err::Error::RustyGitAllowedFileMissing);
+        Err(err::Error::RustyGitAllowedFileMissing)
     }
 }
 
@@ -98,14 +98,14 @@ pub fn get_sha_from_binary(input: &[u8]) -> String {
     for n in input {
         hexpairs.push(format!("{:02x}", n))
     }
-    return hexpairs.join("");
+    hexpairs.join("")
 }
 
 // ----------- fs utils ---------------
 pub fn build_path(mut path: PathBuf, ext: &str) -> Result<PathBuf, err::Error> {
     path.push(ext);
     if path.exists() {
-        return Ok(path);
+        Ok(path)
     } else {
         Err(err::Error::PathDoesntExist(path.display().to_string()))
     }

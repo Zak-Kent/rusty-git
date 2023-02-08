@@ -10,7 +10,7 @@ use crate::objects::{self as obj, tree, NameSha};
 use crate::utils;
 
 fn index_file_sha_pairs<T: obj::NameSha>(
-    input: &Vec<T>,
+    input: &[T],
     name_prefix: Option<String>,
 ) -> HashSet<(String, String)> {
     return input
@@ -47,7 +47,7 @@ fn tree_file_sha_pairs(
             file_sha_pairs.insert(elm.get_name_and_sha(name_prefix.clone()));
         }
     }
-    return Ok(file_sha_pairs);
+    Ok(file_sha_pairs)
 }
 
 pub fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<String, err::Error> {
@@ -57,7 +57,7 @@ pub fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<S
     if let Ok(hsha) = head_sha {
         // get a set of (name, sha) pairs for each file in the last commit object
         if let obj::GitObj::Commit(commit) = obj::read_object(&hsha, repo)? {
-            let commit_tree = utils::git_get_tree_from_commit(commit, &repo)?;
+            let commit_tree = utils::git_get_tree_from_commit(*commit, repo)?;
             commit_tree_files_n_shas = tree_file_sha_pairs(commit_tree, None, repo)?;
         } else {
             return Err(err::Error::GitUnexpectedInternalType(format!(
@@ -76,14 +76,11 @@ pub fn staged_but_not_commited(repo: &obj::Repo, index: &idx::Index) -> Result<S
     // get set of (name, sha) pairs for each file in the index
     let index_files_n_shas: HashSet<(String, String)> = index_file_sha_pairs(&index.entries, None);
 
-    return Ok(format!(
-        "{}",
-        index_files_n_shas
-            .difference(&commit_tree_files_n_shas)
-            .into_iter()
-            .map(|(name, _)| format!("modified: {name}\n"))
-            .collect::<String>()
-    ));
+    Ok(index_files_n_shas
+        .difference(&commit_tree_files_n_shas)
+        .into_iter()
+        .map(|(name, _)| format!("modified: {name}\n"))
+        .collect::<String>())
 }
 
 fn ignored_files(repo: &obj::Repo) -> Result<HashSet<PathBuf>, err::Error> {
@@ -97,17 +94,15 @@ fn ignored_files(repo: &obj::Repo) -> Result<HashSet<PathBuf>, err::Error> {
 
     let mut output: HashSet<PathBuf> = HashSet::new();
     for path in from_utf8(&gitignore)?.split('\n') {
-        if path == "" {
+        if path.is_empty() {
             continue;
+        } else if let Some(p) = path.strip_prefix('/') {
+            output.insert(PathBuf::from(p.to_owned()));
         } else {
-            if path.starts_with("/") {
-                output.insert(PathBuf::from(path[1..].to_owned()));
-            } else {
-                output.insert(PathBuf::from(path.to_owned()));
-            }
+            output.insert(PathBuf::from(path.to_owned()));
         }
     }
-    return Ok(output);
+    Ok(output)
 }
 
 fn gather_mtime_from_worktree(
@@ -139,7 +134,7 @@ fn gather_mtime_from_worktree(
             file_mtime_pairs.extend(inner_vals);
         } else {
             let node_mtime = node_md.modified()?;
-            let node_dt: DateTime<Utc> = node_mtime.clone().into();
+            let node_dt: DateTime<Utc> = node_mtime.into();
             let clean_node_path = node_path.strip_prefix(&repo.worktree)?;
             if let Some(node_path) = clean_node_path.to_str() {
                 let file_output = (node_path.to_owned(), node_dt);
@@ -149,7 +144,7 @@ fn gather_mtime_from_worktree(
             };
         }
     }
-    return Ok(file_mtime_pairs);
+    Ok(file_mtime_pairs)
 }
 
 struct LocalChanges {
@@ -169,28 +164,22 @@ fn local_changes_not_staged_for_commit_or_untracked(
     let idx_name_mtime_pairs: HashSet<(String, DateTime<Utc>)> = HashSet::from_iter(names_mtimes);
     let worktree_name_mtime_pairs = gather_mtime_from_worktree(None, repo)?;
 
-    let not_staged = format!(
-        "{}",
-        idx_name_mtime_pairs
-            .difference(&worktree_name_mtime_pairs)
-            .into_iter()
-            .map(|(name, _)| format!("modified: {name}\n"))
-            .collect::<String>()
-    );
+    let not_staged = idx_name_mtime_pairs
+        .difference(&worktree_name_mtime_pairs)
+        .into_iter()
+        .map(|(name, _)| format!("modified: {name}\n"))
+        .collect::<String>();
 
-    let not_tracked = format!(
-        "{}",
-        worktree_name_mtime_pairs
-            .difference(&idx_name_mtime_pairs)
-            .into_iter()
-            .map(|(name, _)| format!("{name}\n"))
-            .collect::<String>()
-    );
+    let not_tracked = worktree_name_mtime_pairs
+        .difference(&idx_name_mtime_pairs)
+        .into_iter()
+        .map(|(name, _)| format!("{name}\n"))
+        .collect::<String>();
 
-    return Ok(LocalChanges {
+    Ok(LocalChanges {
         not_staged,
         not_tracked,
-    });
+    })
 }
 
 pub fn status(repo: &obj::Repo) -> Result<String, err::Error> {
@@ -215,5 +204,5 @@ pub fn status(repo: &obj::Repo) -> Result<String, err::Error> {
          Untracked files:\n\n{}",
         staged, not_staged, not_tracked
     );
-    return Ok(status);
+    Ok(status)
 }

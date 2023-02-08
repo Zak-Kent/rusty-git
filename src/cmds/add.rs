@@ -5,8 +5,8 @@ use std::os::unix::prelude::MetadataExt;
 
 use crate::error as err;
 use crate::index as idx;
-use crate::utils;
 use crate::objects::{self as obj, blob, AsBytes};
+use crate::utils;
 
 pub fn file_to_index_entry(
     file_name: &str,
@@ -17,28 +17,28 @@ pub fn file_to_index_entry(
 
     let c_time_dt;
     if let Some(ct) = Utc
-        .timestamp_opt(md.ctime().into(), md.ctime_nsec() as u32)
+        .timestamp_opt(md.ctime(), md.ctime_nsec() as u32)
         .single()
     {
         c_time_dt = ct;
     } else {
-        return Err(err::Error::TimestampConversionError);
+        return Err(err::Error::TimestampConversion);
     };
 
     let m_time_dt;
     if let Some(mt) = Utc
-        .timestamp_opt(md.ctime().into(), md.ctime_nsec() as u32)
+        .timestamp_opt(md.ctime(), md.ctime_nsec() as u32)
         .single()
     {
         m_time_dt = mt;
     } else {
-        return Err(err::Error::TimestampConversionError);
+        return Err(err::Error::TimestampConversion);
     };
 
     let blob = blob::blob_from_path(file)?;
     let sha = obj::write_object(blob, None)?;
 
-    return Ok(idx::IndexEntry {
+    Ok(idx::IndexEntry {
         c_time: c_time_dt,
         m_time: m_time_dt,
         dev: md.dev() as u32,
@@ -49,13 +49,10 @@ pub fn file_to_index_entry(
         size: md.size() as u32,
         sha: sha.bytes().to_vec(),
         name: file_name.to_owned(),
-    });
+    })
 }
 
-pub fn add_entry_to_index(
-    repo: &obj::Repo,
-    file_name: &str,
-) -> Result<idx::Index, err::Error> {
+pub fn add_entry_to_index(repo: &obj::Repo, file_name: &str) -> Result<idx::Index, err::Error> {
     let index_contents = utils::git_read_index(repo)?;
     let mut index = idx::parse_git_index(&index_contents)?;
 
@@ -69,18 +66,18 @@ pub fn add_entry_to_index(
         // doesn't exist, add at pos where entry should be
         Err(pos) => index.entries.insert(pos, entry),
     };
-    return Ok(index.to_owned());
+    Ok(index.to_owned())
 }
 
 pub fn write_index(index: idx::Index, repo: &obj::Repo) -> Result<(), err::Error> {
     // the File::create call will truncate the index
     let mut index_file = File::create(repo.gitdir.join("index"))?;
-    index_file.write(&index.as_bytes())?;
-    return Ok(());
+    index_file.write_all(&index.as_bytes())?;
+    Ok(())
 }
 
 pub fn update_index(repo: &obj::Repo, file_name: &str) -> Result<(), err::Error> {
     let updated_index = add_entry_to_index(repo, file_name)?;
     write_index(updated_index, repo)?;
-    return Ok(());
+    Ok(())
 }

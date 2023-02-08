@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::cli;
-use crate::cmd_mods::{add, checkout, init, log, lstree, refs, status, tag, commit as cmt};
+use crate::cmds::{add, checkout, commit as cmt, init, log, lstree, refs, status, tag};
 use crate::error as err;
 use crate::index as idx;
 use crate::objects::{self as obj, blob};
@@ -9,7 +9,7 @@ use crate::utils;
 
 fn run_init(cmd: &cli::Cli) -> Result<Option<String>, err::Error> {
     let repo_path = PathBuf::from(&cmd.repo_path);
-    return Ok(init::create_git_repo(&repo_path)?);
+    init::create_git_repo(&repo_path)
 }
 
 fn hash_object(
@@ -21,13 +21,9 @@ fn hash_object(
     let blob = blob::blob_from_path(bpath)?;
 
     // by passing None to write_obj it will only return the hash, no write
-    let repo_arg;
-    if write_obj {
-        repo_arg = Some(&repo);
-    } else {
-        repo_arg = None;
-    }
-    return Ok(Some(obj::write_object(blob, repo_arg)?.to_string()));
+    let repo_arg = if write_obj { Some(&repo) } else { None };
+
+    Ok(Some(obj::write_object(blob, repo_arg)?.to_string()))
 }
 
 // This version of cat-file differs from git's due to the fact git expects
@@ -36,7 +32,7 @@ fn hash_object(
 // the compressed file stored at the sha's location
 fn cat_file(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     let file_contents = obj::read_object_as_string(&sha, &repo)?;
-    return Ok(Some(file_contents));
+    Ok(Some(file_contents))
 }
 
 fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
@@ -46,7 +42,7 @@ fn log(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     };
     let commit_log = log::follow_commits_to_root(&target_commit, &repo)?;
     let output = log::commit_log_to_string(commit_log)?;
-    return Ok(Some(output));
+    Ok(Some(output))
 }
 
 fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
@@ -54,31 +50,31 @@ fn lstree(sha: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
 
     if let obj::GitObj::Tree(tree) = obj {
         let output = lstree::git_tree_to_string(tree);
-        return Ok(Some(output));
+        Ok(Some(output))
     } else {
-        return Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)));
+        Err(err::Error::GitLsTreeWrongObjType(format!("{:?}", obj)))
     }
 }
 
 fn checkout(sha: &str, dir: &Path, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     checkout::dir_ok_for_checkout(dir)?;
-    let obj = obj::read_object(&sha, &repo)?;
+    let obj = obj::read_object(sha, &repo)?;
     match obj {
         obj::GitObj::Tree(tree) => {
             checkout::checkout_tree(tree, dir, &repo)?;
         }
         obj::GitObj::Commit(commit) => {
-            let tree = utils::git_get_tree_from_commit(commit, &repo)?;
+            let tree = utils::git_get_tree_from_commit(*commit, &repo)?;
             checkout::checkout_tree(tree, dir, &repo)?;
         }
         _ => return Err(err::Error::GitCheckoutWrongObjType(format!("{:?}", obj))),
     }
-    return Ok(None);
+    Ok(None)
 }
 
 fn show_ref(repo: obj::Repo) -> Result<Option<String>, err::Error> {
     let refs = refs::gather_refs(None, &repo)?.concat();
-    return Ok(Some(refs));
+    Ok(Some(refs))
 }
 
 fn tag(
@@ -89,13 +85,13 @@ fn tag(
 ) -> Result<Option<String>, err::Error> {
     if let Some(n) = name {
         if *add_object {
-            return Err(err::Error::GitCreateTagObjectNotImplemented);
+            Err(err::Error::GitCreateTagObjectNotImplemented)
         } else {
             tag::create_lightweight_tag(n, object, &repo)?;
-            return Ok(None);
+            Ok(None)
         }
     } else {
-        return Ok(Some(tag::list_all_tags(&repo)?.concat()));
+        Ok(Some(tag::list_all_tags(&repo)?.concat()))
     }
 }
 
@@ -107,12 +103,12 @@ pub fn ls_files(repo: obj::Repo) -> Result<Option<String>, err::Error> {
         .into_iter()
         .map(|e| format!("{}\n", e.name))
         .collect();
-    return Ok(Some(file_names.concat()));
+    Ok(Some(file_names.concat()))
 }
 
 pub fn status(repo: obj::Repo) -> Result<Option<String>, err::Error> {
     let status = status::status(&repo)?;
-    return Ok(Some(status));
+    Ok(Some(status))
 }
 
 pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
@@ -132,7 +128,7 @@ pub fn add(file_name: String, repo: obj::Repo) -> Result<Option<String>, err::Er
         let index = idx::Index::new(entry)?;
         add::write_index(index, &repo)?;
     }
-    return Ok(None);
+    Ok(None)
 }
 
 fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
@@ -140,22 +136,21 @@ fn commit(msg: String, repo: obj::Repo) -> Result<Option<String>, err::Error> {
     utils::git_check_for_rusty_git_allowed(&repo)?;
 
     cmt::commit(msg, repo)?;
-    return Ok(None);
+    Ok(None)
 }
 
 pub fn run_cmd(cmd: &cli::Cli, write_obj: bool) -> Result<Option<String>, err::Error> {
     let command = &cmd.command;
-    let repo: Option<obj::Repo>;
 
     // unwrap calls to repo below safe because of this check
-    if cmd.command != cli::GitCmd::Init {
-        repo = Some(obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?);
+    let repo: Option<obj::Repo> = if cmd.command != cli::GitCmd::Init {
+        Some(obj::Repo::new(PathBuf::from(cmd.repo_path.to_owned()))?)
     } else {
-        repo = None;
-    }
+        None
+    };
 
     match command {
-        cli::GitCmd::Init => run_init(&cmd),
+        cli::GitCmd::Init => run_init(cmd),
         cli::GitCmd::HashObject { path } => hash_object(path.to_owned(), repo.unwrap(), write_obj),
         cli::GitCmd::CatFile { sha } => cat_file(sha.to_owned(), repo.unwrap()),
         cli::GitCmd::Log { sha } => log(sha.to_owned(), repo.unwrap()),
@@ -244,7 +239,7 @@ mod object_tests {
 
         let new_file_name = "foo-aleady-exists-in-fake-index.txt";
         let new_file = File::create(repo.worktree.join(new_file_name));
-        writeln!(new_file.unwrap(), "{}", "hahaha").unwrap();
+        writeln!(new_file.unwrap(), "hahaha").unwrap();
 
         let updated_index = add::add_entry_to_index(&repo, new_file_name).unwrap();
         let mut updated_file_names: HashSet<String> = HashSet::new();
@@ -273,7 +268,7 @@ mod object_tests {
         let new_file_name = "foo.txt";
         let new_file_full_path = repo.worktree.join(new_file_name);
         let new_file = File::create(new_file_full_path.clone());
-        writeln!(new_file.unwrap(), "{}", "hahaha").unwrap();
+        writeln!(new_file.unwrap(), "hahaha").unwrap();
 
         let add_cmd = cli::Cli {
             command: cli::GitCmd::Add {
