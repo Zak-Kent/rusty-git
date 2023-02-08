@@ -10,7 +10,7 @@ use crate::objects::{self as obj, tree, NameSha};
 use crate::utils;
 
 fn index_file_sha_pairs<T: obj::NameSha>(
-    input: &Vec<T>,
+    input: &[T],
     name_prefix: Option<String>,
 ) -> HashSet<(String, String)> {
     return input
